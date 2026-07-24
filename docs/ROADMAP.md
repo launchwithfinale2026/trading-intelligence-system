@@ -169,20 +169,35 @@ correctly returned zero candidates (none currently show a real volume surge)
 
 ---
 
-## Phase 7 — Strategy Engine ⏳
+## Phase 7 — Strategy Engine ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** First two strategies producing structured signals.
 
-**Will build:**
-- `strategies/base.py` — Strategy interface + `Signal` contract
-- `strategies/momentum.py` — trend strength, volume increase, positive momentum
-- `strategies/breakout.py` — structure break, volume confirmation
-- `signals` table + `api/signals.py`
+**Built:**
+- `strategies/base.py` — `Signal` dataclass contract + `Strategy` ABC
+  (pure: same history in, same signal-or-None out)
+- `strategies/momentum.py` — requires price above its 50-day MA, a >=5%
+  gain over the last 10 trading days, and volume >=1.3x its 20-day average;
+  stop at -5%, target at 2R
+- `strategies/breakout.py` — requires a close above the prior 20-day high on
+  >=1.5x average volume; stop at the broken resistance level (now support),
+  target at 2R
+- `signals` table (Alembic-migrated) + `repositories/signal_repository.py` +
+  `services/signal_service.py` + `GET /signals` (authenticated, not
+  user-isolated — signals aren't user-owned data)
+- New `SignalDirection` enum (long/short) in `domain/enums.py`
 
-**Success criteria:** Each strategy returns a well-formed `Signal` object
-(`symbol, direction, entry, stop_loss, target, confidence, reasoning`) for
-known fixture data, including correctly returning "no signal" when
-conditions aren't met.
+**Success criteria:** ✅ Verified — 9 strategy tests against fixture price
+histories (both strategies firing correctly and correctly returning `None`
+for insufficient history, no momentum, no volume confirmation, and
+below-trend cases), plus 5 persistence/API tests. Found and fixed a real
+ordering bug along the way: SQLite's `CURRENT_TIMESTAMP` has 1-second
+resolution, so signals inserted within the same second need `id DESC` as an
+explicit tiebreaker for "most recent first" to be correct. Live integration
+smoke test against real NVDA history (124 bars) ran both strategies without
+error. 76/76 suite passing.
 
 **Dependencies:** Phase 6 (strategies run against scanner output).
 

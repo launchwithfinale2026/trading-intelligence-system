@@ -24,3 +24,8 @@ class AlertPreference(str, Enum):
     ALL_SIGNALS = "all_signals"
     HIGH_CONFIDENCE_ONLY = "high_confidence_only"
     NONE = "none"
+
+
+class SignalDirection(str, Enum):
+    LONG = "long"
+    SHORT = "short"

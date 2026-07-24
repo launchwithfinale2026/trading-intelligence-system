@@ -61,8 +61,10 @@ def client() -> Generator[TestClient, None, None]:
             session.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    test_client = TestClient(app)
+    test_client.session_factory = session_factory  # lets tests seed data directly
     try:
-        yield TestClient(app)
+        yield test_client
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

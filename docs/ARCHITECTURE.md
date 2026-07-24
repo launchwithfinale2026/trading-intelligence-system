@@ -196,7 +196,7 @@ backend/app/
     auth.py                 register / login / logout / session        [BUILT — Phase 3]
     users.py                 user + profile CRUD, isolation             [BUILT — Phase 2/3]
     dashboard.py              dashboard read endpoints                  [planned — Phase 12]
-    signals.py                 signal history / detail endpoints        [planned — Phase 7]
+    signals.py                 signal history endpoint (GET /signals)   [BUILT — Phase 7]
     dependencies.py             get_current_user, shared deps           [BUILT — Phase 3]
   core/
     config.py                 env-based settings                       [BUILT — Phase 1]
@@ -216,9 +216,9 @@ backend/app/
     factory.py                     provider selection via config                [BUILT — Phase 5]
     scanner.py                    quality filters, ranking               [BUILT — Phase 6]
   strategies/
-    base.py                       Strategy base class / Signal contract  [planned — Phase 7]
-    momentum.py                     momentum strategy                    [planned — Phase 7]
-    breakout.py                      breakout strategy                    [planned — Phase 7]
+    base.py                       Strategy base class / Signal contract  [BUILT — Phase 7]
+    momentum.py                     momentum strategy                    [BUILT — Phase 7]
+    breakout.py                      breakout strategy                    [BUILT — Phase 7]
   analysis/
     scoring.py                        candidate scoring                    [BUILT — Phase 6]
     technical.py                        indicators (trend, volume, etc.)    [BUILT — Phase 6, extended Phase 7]
@@ -250,7 +250,7 @@ each phase adds tables.
 |---|---|---|---|
 | `users` ✅ | 2 | Login identity (username, email, password hash, telegram_id) | 1:1 with `profiles` |
 | `profiles` ✅ | 2 | Per-user trading config (account_size, risk preference, style, alert preference) | belongs to `users` |
-| `signals` | 7 | Every signal a strategy produced, regardless of user decision | belongs to a strategy run |
+| `signals` ✅ | 7 | Every signal a strategy produced, regardless of user decision | belongs to a strategy run |
 | `decisions` | 11 | A user's OPEN/IGNORE response to a signal | belongs to `users` + `signals` |
 | `positions` | 10 | Active/closed positions opened from an accepted signal | belongs to `users` + `signals` |
 | `trade_results` | 11 | Outcome of a closed position (win/loss, R-multiple) | belongs to `positions` |
