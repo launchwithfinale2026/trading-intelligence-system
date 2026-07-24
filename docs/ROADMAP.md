@@ -283,18 +283,41 @@ qualifies. 108/108 suite passing.
 
 ---
 
-## Phase 10 — Position Tracking ⏳
+## Phase 10 — Position Tracking ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** Track positions opened from accepted signals through to close.
 
-**Will build:**
-- `positions` table + `portfolio/positions.py`
-- Monitoring loop: stop hit, target hit, thesis failure
-- `STOP LOSS ALERT` / `TAKE PROFIT ALERT` Telegram messages
+**Built:**
+- `positions` table (Alembic-migrated) + `repositories/position_repository.py`
+  + `services/position_service.py` — positions live in the same
+  repository/service pattern as every other entity rather than a one-off
+  `portfolio/positions.py` module, for architectural consistency (Decision 7)
+- `PositionService.open_position()`: wired to a successful `/open` (or
+  text-reply OPEN) decision — sizing is **recomputed at open time** from
+  the user's current profile, not reused from whenever the alert was
+  originally sent, since account size can change between alert and decision
+- `PositionService.check_and_close_open_positions()`: fetches one price per
+  distinct symbol (not per position — multiple users can hold the same
+  symbol), closes on stop or target for both long and short, leaves
+  positions open otherwise, skips symbols with unavailable data
+- `engine/pipeline.py` gains `run_position_monitor_cycle()`, registered
+  with the scheduler alongside the scan cycle (same
+  `ENABLE_SCHEDULED_SCANNING` gate, its own interval —
+  `POSITION_MONITOR_INTERVAL_SECONDS`, default 300s)
+- `telegram/alerts.py` gains `format_position_closed_alert()` (🛑 STOP LOSS
+  ALERT / ✅ TAKE PROFIT ALERT with P/L) and `send_position_closed_alert()`
+- `/positions` now reports real open positions instead of the Phase 4
+  placeholder
 
-**Success criteria:** Opening a position via `OPEN` creates a tracked
-position; simulated price movement through stop/target correctly closes it
-and sends the right alert.
+**Success criteria:** ✅ Verified — 8 `PositionService` unit tests (sizing,
+duplicate rejection, zero-share risk rejection, stop/target close for long
+*and* short, leaving positions open in between, skipping unavailable
+prices), 4 end-to-end monitor-cycle tests (close + alert on stop, close +
+alert on target, no-op in between, DB state actually updated), plus new
+Telegram-handler tests confirming `/open` creates a real `Position` visible
+via `/positions` and `/ignore` does not. 122/122 suite passing.
 
 **Dependencies:** Phase 9 (positions originate from an OPEN reply), Phase 5
 (price monitoring).

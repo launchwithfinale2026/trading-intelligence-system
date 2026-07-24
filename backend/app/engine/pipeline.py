@@ -22,14 +22,16 @@ from app.market.factory import get_market_data_provider
 from app.market.provider import MarketDataProvider
 from app.market.scanner import Scanner
 from app.market.universe import DEFAULT_UNIVERSE
+from app.repositories.signal_repository import SignalRepository
 from app.repositories.user_repository import UserRepository
 from app.risk.calculator import calculate_position_size
+from app.services.position_service import PositionService
 from app.services.signal_service import SignalService
 from app.strategies.base import Signal as StrategySignal
 from app.strategies.base import Strategy
 from app.strategies.breakout import BreakoutStrategy
 from app.strategies.momentum import MomentumStrategy
-from app.telegram.alerts import send_alert
+from app.telegram.alerts import send_alert, send_position_closed_alert
 
 logger = logging.getLogger(__name__)
 
@@ -131,3 +133,46 @@ def run_scan_cycle_sync() -> int:
 
     bot = Bot(token=settings.telegram_bot_token)
     return asyncio.run(run_scan_cycle(bot))
+
+
+async def run_position_monitor_cycle(
+    bot: Bot,
+    *,
+    provider: MarketDataProvider | None = None,
+    db: Session | None = None,
+) -> int:
+    """Checks every open position against current prices and closes (+
+    alerts) any that have hit their stop or target. Returns the number of
+    positions closed this cycle.
+    """
+    provider = provider or get_market_data_provider()
+    owns_session = db is None
+    db = db or SessionLocal()
+
+    try:
+        closed_positions = PositionService(db).check_and_close_open_positions(provider)
+
+        for position in closed_positions:
+            user = UserRepository(db).get(position.user_id)
+            signal = SignalRepository(db).get(position.signal_id)
+            if user is None or signal is None:
+                logger.warning("closed position %s missing user or signal for alerting", position.id)
+                continue
+            await send_position_closed_alert(bot, user, position, signal)
+
+        return len(closed_positions)
+    finally:
+        if owns_session:
+            db.close()
+
+
+def run_position_monitor_cycle_sync() -> int:
+    import asyncio
+
+    settings = get_settings()
+    if not settings.telegram_bot_token:
+        logger.warning("position monitor cycle skipped: TELEGRAM_BOT_TOKEN is not set")
+        return 0
+
+    bot = Bot(token=settings.telegram_bot_token)
+    return asyncio.run(run_position_monitor_cycle(bot))

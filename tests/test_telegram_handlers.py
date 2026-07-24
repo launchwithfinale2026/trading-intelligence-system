@@ -175,6 +175,34 @@ def test_open_records_decision_for_known_signal(bot_session_factory) -> None:
     assert f"Recorded: OPEN on signal {signal_id}" in update.message.reply_text.call_args[0][0]
 
 
+def test_open_creates_a_real_position_reflected_in_positions_command(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    signal_id = _seed_signal(bot_session_factory)
+    update = _fake_update(telegram_user_id=12345)
+
+    asyncio.run(handlers.open_command(update, _fake_context([str(signal_id)])))
+    assert "Position opened" in update.message.reply_text.call_args[0][0]
+
+    positions_update = _fake_update(telegram_user_id=12345)
+    asyncio.run(handlers.positions(positions_update, _fake_context()))
+
+    reply = positions_update.message.reply_text.call_args[0][0]
+    assert "NVDA" in reply
+    assert "no active positions" not in reply
+
+
+def test_ignore_does_not_create_a_position(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    signal_id = _seed_signal(bot_session_factory)
+    update = _fake_update(telegram_user_id=12345)
+
+    asyncio.run(handlers.ignore_command(update, _fake_context([str(signal_id)])))
+
+    positions_update = _fake_update(telegram_user_id=12345)
+    asyncio.run(handlers.positions(positions_update, _fake_context()))
+    assert "no active positions" in positions_update.message.reply_text.call_args[0][0]
+
+
 def test_ignore_after_open_on_same_signal_is_a_conflict(bot_session_factory) -> None:
     _seed_user(bot_session_factory, telegram_id=12345)
     signal_id = _seed_signal(bot_session_factory)

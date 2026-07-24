@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     # that starts happening the moment this code is deployed.
     enable_scheduled_scanning: bool = False
     scan_interval_seconds: int = 900
+    position_monitor_interval_seconds: int = 300
 
 
 @lru_cache

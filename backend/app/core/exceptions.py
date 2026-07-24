@@ -32,3 +32,10 @@ class MarketDataError(DomainError):
     Raised instead of returning placeholder/fabricated values — callers must
     handle this explicitly rather than silently receiving fake prices.
     """
+
+
+class RiskLimitError(DomainError):
+    """A position can't be sized: the account/risk inputs would require
+    trading a fractional or zero-share position to stay within the user's
+    risk limit.
+    """

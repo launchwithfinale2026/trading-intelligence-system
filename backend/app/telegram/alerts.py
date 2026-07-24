@@ -9,8 +9,10 @@ import re
 from telegram import Bot
 from telegram.error import TelegramError
 
+from app.database.models.position import Position
 from app.database.models.signal import Signal
 from app.database.models.user import User
+from app.domain.enums import PositionStatus
 from app.risk.calculator import PositionSize
 
 logger = logging.getLogger(__name__)
@@ -44,18 +46,44 @@ def extract_signal_id(alert_text: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def format_position_closed_alert(position: Position, signal: Signal) -> str:
+    is_win = position.status == PositionStatus.CLOSED_TARGET
+    header = "✅ TAKE PROFIT ALERT" if is_win else "🛑 STOP LOSS ALERT"
+    pnl_per_share = position.close_price - position.entry
+    total_pnl = pnl_per_share * position.shares
+
+    return (
+        f"{header}\n\n"
+        f"Symbol: {signal.symbol}\n"
+        f"Entry: {position.entry}\n"
+        f"Close: {position.close_price}\n"
+        f"Shares: {position.shares}\n"
+        f"P/L: {'+' if total_pnl >= 0 else ''}{total_pnl}\n\n"
+        f"Signal ID: {signal.id}"
+    )
+
+
 async def send_alert(bot: Bot, user: User, signal: Signal, position_size: PositionSize) -> bool:
-    """Sends the alert to one user. Returns False (logged, not raised) if
-    the user has no linked Telegram account or the send otherwise fails —
-    a delivery failure for one user must not abort alerting the rest.
+    """Sends the entry alert to one user. Returns False (logged, not
+    raised) if the user has no linked Telegram account or the send
+    otherwise fails — a delivery failure for one user must not abort
+    alerting the rest.
     """
+    return await _send_text(bot, user, format_alert(signal, position_size))
+
+
+async def send_position_closed_alert(bot: Bot, user: User, position: Position, signal: Signal) -> bool:
+    return await _send_text(bot, user, format_position_closed_alert(position, signal))
+
+
+async def _send_text(bot: Bot, user: User, text: str) -> bool:
     if user.telegram_id is None:
-        logger.warning("cannot alert user %s: no linked Telegram account", user.id)
+        logger.warning("cannot message user %s: no linked Telegram account", user.id)
         return False
 
     try:
-        await bot.send_message(chat_id=user.telegram_id, text=format_alert(signal, position_size))
+        await bot.send_message(chat_id=user.telegram_id, text=text)
         return True
     except TelegramError as exc:
-        logger.warning("failed to send alert to user %s: %s", user.id, exc)
+        logger.warning("failed to send message to user %s: %s", user.id, exc)
         return False

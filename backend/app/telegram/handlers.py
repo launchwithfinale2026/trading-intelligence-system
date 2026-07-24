@@ -12,13 +12,16 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, RiskLimitError
 from app.database.database import SessionLocal
 from app.database.models.user import User
 from app.domain.enums import DecisionType
 from app.market.factory import get_market_data_provider
+from app.repositories.position_repository import PositionRepository
+from app.repositories.signal_repository import SignalRepository
 from app.repositories.user_repository import UserRepository
 from app.services.decision_service import DecisionService
+from app.services.position_service import PositionService
 from app.telegram.alerts import extract_signal_id
 
 logger = logging.getLogger(__name__)
@@ -99,15 +102,24 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db = SessionLocal()
     try:
-        if _resolve_user(db, update) is None:
+        user = _resolve_user(db, update)
+        if user is None:
             await update.message.reply_text(_NOT_LINKED_MESSAGE)
             return
+
+        open_positions = PositionRepository(db).list_open_for_user(user.id)
+        if not open_positions:
+            await update.message.reply_text("You have no active positions.")
+            return
+
+        lines = ["Active positions:"]
+        for position in open_positions:
+            signal = SignalRepository(db).get(position.signal_id)
+            symbol = signal.symbol if signal else f"signal {position.signal_id}"
+            lines.append(f"- {symbol}: {position.shares} shares @ {position.entry} (stop {position.stop_loss}, target {position.target})")
+        await update.message.reply_text("\n".join(lines))
     finally:
         db.close()
-
-    # Position tracking is built in Phase 10 — until then this is always
-    # true (no position can exist yet), not a placeholder pretending success.
-    await update.message.reply_text("You have no active positions.")
 
 
 async def _record_decision_and_reply(update: Update, decision_type: DecisionType, signal_id: int) -> None:
@@ -132,7 +144,20 @@ async def _record_decision_and_reply(update: Update, decision_type: DecisionType
             await update.message.reply_text(str(exc))
             return
 
-        await update.message.reply_text(f"Recorded: {command} on signal {signal_id}.")
+        if decision_type != DecisionType.OPEN:
+            await update.message.reply_text(f"Recorded: {command} on signal {signal_id}.")
+            return
+
+        signal = SignalRepository(db).get(signal_id)
+        try:
+            position = PositionService(db).open_position(user=user, signal=signal)
+        except RiskLimitError as exc:
+            await update.message.reply_text(f"Recorded: OPEN on signal {signal_id}. But no position was opened: {exc}")
+            return
+
+        await update.message.reply_text(
+            f"Recorded: OPEN on signal {signal_id}. Position opened: {position.shares} shares @ {position.entry}."
+        )
     finally:
         db.close()
 

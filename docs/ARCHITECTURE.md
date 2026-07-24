@@ -225,8 +225,12 @@ backend/app/
     technical.py                        indicators (trend, volume, etc.)    [BUILT — Phase 6, extended Phase 7]
   risk/
     calculator.py                       position sizing                     [BUILT — Phase 8]
-  portfolio/
-    positions.py                        active position tracking              [planned — Phase 10]
+  repositories/position_repository.py, services/position_service.py
+                                         active position tracking              [BUILT — Phase 10; superseded the
+                                                                                 originally-planned portfolio/
+                                                                                 positions.py for consistency
+                                                                                 with every other entity's
+                                                                                 repository/service pattern]
   telegram/
     bot.py                                bot bootstrap                       [BUILT — Phase 4]
     handlers.py                            command + reply handlers            [BUILT — Phase 4, extended Phase 9]
@@ -257,7 +261,7 @@ each phase adds tables.
 | `profiles` ✅ | 2 | Per-user trading config (account_size, risk preference, style, alert preference) | belongs to `users` |
 | `signals` ✅ | 7 | Every signal a strategy produced, regardless of user decision | belongs to a strategy run |
 | `decisions` ✅ | 4 (moved from 11 — see Decision 15) | A user's OPEN/IGNORE response to a signal | belongs to `users` + `signals` |
-| `positions` | 10 | Active/closed positions opened from an accepted signal | belongs to `users` + `signals` |
+| `positions` ✅ | 10 | Active/closed positions opened from an accepted signal | belongs to `users` + `signals` |
 | `trade_results` | 11 | Outcome of a closed position (win/loss, R-multiple) | belongs to `positions` |
 
 Every user-owned table carries a `user_id` foreign key and every query is

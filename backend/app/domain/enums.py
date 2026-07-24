@@ -34,3 +34,10 @@ class SignalDirection(str, Enum):
 class DecisionType(str, Enum):
     OPEN = "open"
     IGNORE = "ignore"
+
+
+class PositionStatus(str, Enum):
+    OPEN = "open"
+    CLOSED_STOP = "closed_stop"
+    CLOSED_TARGET = "closed_target"
+    CLOSED_MANUAL = "closed_manual"
