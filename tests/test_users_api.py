@@ -52,6 +52,17 @@ def test_rejects_invalid_token(client: TestClient) -> None:
     assert response.status_code == 401
 
 
+def test_rejects_expired_token(client: TestClient) -> None:
+    from app.core.security import create_access_token
+
+    _register_and_login(client, JAKE_PAYLOAD)
+    expired_token = create_access_token(subject="1", expires_minutes=-1)
+
+    response = client.get("/users/me", headers={"Authorization": f"Bearer {expired_token}"})
+
+    assert response.status_code == 401
+
+
 def test_update_profile_changes_own_data_only(client: TestClient) -> None:
     jake_token = _register_and_login(client, JAKE_PAYLOAD)
     friend_token = _register_and_login(client, FRIEND_PAYLOAD)

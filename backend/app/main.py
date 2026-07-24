@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, feedback, market, portfolio, signals, users, watchlist
-from app.core.config import get_settings
+from app.core.config import assert_production_secret_key_is_set, get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.scheduler import get_scheduler
@@ -14,6 +14,8 @@ from app.core.scheduler import get_scheduler
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
+
+assert_production_secret_key_is_set(settings)
 
 
 @asynccontextmanager

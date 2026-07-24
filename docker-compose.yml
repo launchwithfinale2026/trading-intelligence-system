@@ -40,7 +40,11 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    command: ["python", "-m", "app.telegram.bot"]
+    # Runs its own `alembic upgrade head` first — idempotent, and this
+    # service has no dependency on the `backend` service actually starting
+    # first, only on `db` being reachable, so it can't assume migrations
+    # have already been applied by someone else.
+    command: ["sh", "-c", "alembic upgrade head && python -m app.telegram.bot"]
     env_file:
       - .env
     environment:
@@ -59,7 +63,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    command: ["python", "-m", "app.engine.worker"]
+    # Same reasoning as telegram-bot above: this service doesn't depend on
+    # `backend`, only on `db`, so it can't assume migrations already ran.
+    command: ["sh", "-c", "alembic upgrade head && python -m app.engine.worker"]
     env_file:
       - .env
     environment:

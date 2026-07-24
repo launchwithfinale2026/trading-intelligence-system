@@ -62,3 +62,37 @@ def test_logout_returns_200(client: TestClient) -> None:
     response = client.post("/auth/logout")
 
     assert response.status_code == 200
+
+
+def test_register_rejects_invalid_email(client: TestClient) -> None:
+    response = client.post("/auth/register", json={**JAKE_PAYLOAD, "email": "not-an-email"})
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_too_short_password(client: TestClient) -> None:
+    response = client.post("/auth/register", json={**JAKE_PAYLOAD, "password": "short"})
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_username_with_invalid_characters(client: TestClient) -> None:
+    response = client.post("/auth/register", json={**JAKE_PAYLOAD, "username": "not a valid username!"})
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_missing_profile(client: TestClient) -> None:
+    payload = {k: v for k, v in JAKE_PAYLOAD.items() if k != "profile"}
+
+    response = client.post("/auth/register", json=payload)
+
+    assert response.status_code == 422
+
+
+def test_register_rejects_duplicate_email_with_different_username(client: TestClient) -> None:
+    client.post("/auth/register", json=JAKE_PAYLOAD)
+
+    response = client.post("/auth/register", json={**JAKE_PAYLOAD, "username": "someone_else"})
+
+    assert response.status_code == 409

@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError, type AlertPreference, type RiskPreference, type TradingStyle } from "@/lib/api";
 
 export default function RegisterPage() {
-  const { register, user } = useAuth();
+  const { register, user, loading } = useAuth();
   const router = useRouter();
 
   const [username, setUsername] = useState("");
@@ -20,10 +20,11 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) {
-    router.replace("/");
-    return null;
-  }
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/");
+    }
+  }, [loading, user, router]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -41,12 +42,17 @@ export default function RegisterPage() {
           alert_preference: alertPreference,
         },
       });
-      router.replace("/");
+      // Redirect happens via the effect above once `user` updates — a
+      // single source of truth instead of a second call site here.
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Registration failed.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (loading || user) {
+    return <div className="p-8 text-center text-sm text-neutral-500">Loading…</div>;
   }
 
   return (

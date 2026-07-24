@@ -32,12 +32,53 @@ This is a recommendation, not a requirement — the app has no
 provider-specific code (Decision 8's replaceable-provider philosophy
 applies to hosting too, informally).
 
-## 2. Provision the database
+## 2. Provision the database (Supabase)
 
-1. Create a Postgres instance with your chosen provider.
-2. Copy its connection string and rewrite it to SQLAlchemy's
-   `psycopg2` dialect if needed:
-   `postgresql+psycopg2://user:password@host:5432/dbname`
+This app's backend and Telegram bot are **persistent, long-running
+processes** (uvicorn + a long-polling bot), not serverless/edge functions —
+that fact determines which of Supabase's three connection strings to use.
+
+1. Create a project at [supabase.com](https://supabase.com) (a human,
+   credentialed step — account creation is explicitly out of scope for
+   automation, see "What's explicitly not automated here" below).
+2. In the dashboard: **Project Settings → Database → Connection string**.
+   Supabase offers three variants — pick based on your backend host's
+   network:
+
+   | Variant | Port | Use when |
+   |---|---|---|
+   | **Session pooler** (recommended default) | `5432` | Your host has **IPv4-only** egress — true for most free/cheap tiers on Railway, Render, and Fly.io, the hosts this doc recommends in step 1. Supports persistent connections and DDL (so Alembic migrations work through it), unlike the transaction pooler. |
+   | Direct connection | `5432` | Your host has **IPv6** egress, or you've paid for Supabase's IPv4 add-on. No pooler overhead. |
+   | Transaction pooler | `6543` | Serverless/edge functions with many short-lived connections — **not this app's shape**, and Alembic's DDL/locking can misbehave under transaction-mode pooling. Don't use this one here. |
+
+   If unsure whether your host has IPv6 egress, default to the **session
+   pooler** — it works everywhere.
+
+3. Copy the connection string and set it as `DATABASE_URL`. Supabase gives
+   you a bare `postgresql://...` (or, from some older flows/other tools,
+   `postgres://...`) URL — either works as-is:
+   - `postgresql://...` is accepted directly (SQLAlchemy defaults to the
+     `psycopg2` driver, which is installed — see `requirements.txt`).
+   - A bare `postgres://...` scheme is automatically rewritten to
+     `postgresql+psycopg2://...` at startup (`Settings._normalize_postgres_scheme`
+     in `backend/app/core/config.py`) — SQLAlchemy 2.x doesn't recognize the
+     unprefixed `postgres://` scheme on its own and would otherwise crash
+     at `create_engine()` time. You don't need to edit the string by hand
+     either way.
+
+   Example (session pooler):
+   ```
+   DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+   Example (direct connection, IPv6/IPv4-add-on hosts only):
+   ```
+   DATABASE_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
+   ```
+
+4. Migrations run the same way regardless of which variant you picked —
+   `alembic upgrade head` (already wired into the Dockerfile's `CMD`, see
+   step 4 below) creates all tables from a completely empty database. No
+   manual schema setup in the Supabase SQL editor is needed or expected.
 
 ## 3. Create the Telegram bot (if not already done)
 
@@ -125,6 +166,18 @@ The Telegram bot token has been live-verified against `https://api.telegram.org/
 this session (bot: `@Freetrade26bot`) and the full local stack (backend,
 bot, frontend) was run and manually exercised — see the verification log
 in this session's conversation for the exact checks run.
+
+## Since this was written (2026-07-24 Supabase-prep session)
+
+Step 2 above was rewritten with concrete Supabase connection-string guidance
+(session pooler vs. direct vs. transaction pooler, and why this app — a
+persistent server, not serverless — should default to the session pooler).
+Also fixed since the previous addendum: a bare `postgres://` DATABASE_URL
+(which some tools/older Supabase flows still hand out) no longer crashes
+the app at startup — see `docs/DEPLOYMENT_READY_CHECKLIST.md` for the full
+list of deployment-readiness fixes made this week. See that same file for
+the current status of live (not just SQLite + offline-dialect) Postgres
+migration verification.
 
 ## What's explicitly not automated here
 
