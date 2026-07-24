@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     secret_key: str = "dev-only-insecure-secret-change-me"
     access_token_expire_minutes: int = 60 * 24
 
+    # Dashboard. Comma-separated list of origins allowed to call this API
+    # from a browser (CORS). The Next.js dev server's default is included
+    # so `npm run dev` works out of the box against a local backend.
+    cors_allowed_origins: str = "http://localhost:3000"
+
     # Market data. "yfinance" is the only implementation today; the value
     # exists so a future provider is a config change, not a code change.
     market_data_provider: str = "yfinance"

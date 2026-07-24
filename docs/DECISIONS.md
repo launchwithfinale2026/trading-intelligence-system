@@ -332,3 +332,34 @@ replaces it.
   decision the build spec reserves for a human.
 - **Status:** Accepted. Flipping `ENABLE_SCHEDULED_SCANNING=true` is a
   one-line config change once a human has made that call.
+
+---
+
+## 17. Dashboard uses the App Router only; frontend verified without an interactive browser
+
+- **Date:** 2026-07-23
+- **Decision:** The frontend is built entirely on Next.js's App Router
+  (`app/`); the `pages/`/`dashboard/` directories from the original spec's
+  structure are unused. Separately: this phase's frontend was verified via
+  `tsc`/ESLint/production build/Vitest plus `curl`-driven checks of every
+  route and the real cross-origin API flow (including CORS headers) —
+  **not** by clicking through it in an actual browser, because the
+  Claude-in-Chrome extension wasn't connected in this environment.
+- **Reasoning:** App Router is Next.js's current, actively-developed
+  routing system (confirmed via `node_modules/next/dist/docs/` for this
+  specific Next.js 16 install, per that package's own `AGENTS.md` warning
+  that it postdates training data) — building against the legacy Pages
+  Router alongside it would just be maintaining two routing systems for no
+  benefit. On the verification gap: static analysis (types, lint, build)
+  and real network-level checks catch most integration bugs, but neither
+  catches everything a human eye would (layout/spacing issues, a form that
+  submits but looks wrong, a redirect loop that only shows up interactively).
+- **Alternatives considered:** Waiting to build the frontend until browser
+  automation was available. Rejected — the backend this phase depends on
+  was already complete and stable, and the verification gap is disclosed
+  rather than hidden; deferring real, working code over a testing-tool
+  availability issue would be a worse outcome than shipping it with an
+  explicit "have a human click through this" follow-up.
+- **Status:** Accepted, with a known gap. **A human should manually click
+  through register → login → dashboard → profile update → history → logout
+  in a real browser before considering Phase 12 fully trustworthy.**

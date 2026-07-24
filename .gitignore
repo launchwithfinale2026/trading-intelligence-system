@@ -10,3 +10,5 @@ node_modules/
 .next/
 *.log
 .claude/
+.env.local
+.env*.local

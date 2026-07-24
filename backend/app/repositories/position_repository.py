@@ -21,3 +21,7 @@ class PositionRepository(BaseRepository[Position]):
     def list_open_for_user(self, user_id: int) -> list[Position]:
         stmt = select(Position).where(Position.user_id == user_id, Position.status == PositionStatus.OPEN)
         return list(self.db.scalars(stmt))
+
+    def list_for_user(self, user_id: int) -> list[Position]:
+        stmt = select(Position).where(Position.user_id == user_id).order_by(Position.created_at.desc(), Position.id.desc())
+        return list(self.db.scalars(stmt))

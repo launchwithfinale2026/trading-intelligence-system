@@ -360,21 +360,52 @@ confirming a real `TradeResult` row appears after a stop-loss close.
 
 ---
 
-## Phase 12 — Web Dashboard ⏳
+## Phase 12 — Web Dashboard ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** A dashboard for login, profile management, and reviewing history —
 not a duplicate of Telegram's real-time alerting.
 
-**Will build:**
-- Login page
-- Profile page (account size, risk level, strategy preferences, alert
-  settings)
-- Dashboard home (market status, active positions, recent signals,
-  performance)
-- History page (past signals, decisions, results)
+**Built:**
+- Next.js 16 (App Router) + TypeScript + Tailwind CSS 4, scaffolded via
+  `create-next-app` — see `frontend/AGENTS.md`'s own note that this Next.js
+  version postdates training data; verified current conventions (async
+  params, Server/Client Components, `NEXT_PUBLIC_` env vars) against
+  `node_modules/next/dist/docs/` before writing pages
+- `/login`, `/register` — auth forms; register includes the full profile
+  (account size, risk preference, trading style, alert preference)
+- `/` (dashboard home) — market status, active positions, recent signals,
+  performance by strategy
+- `/profile` — view/edit profile fields, persisted via `PATCH /users/me/profile`
+- `/history` — past decisions joined against signals and positions client-side
+  (symbol, strategy, decision, result, close price)
+- `lib/api.ts` — typed fetch client, `lib/auth-context.tsx` — token in
+  `localStorage`, `components/ProtectedRoute.tsx` — redirects to `/login`
+  when unauthenticated
+- **New backend endpoints added to support the dashboard** (weren't needed
+  before — only existed as Telegram-handler-internal calls): `GET
+  /portfolio/positions`, `GET /portfolio/decisions` (both isolated to the
+  requesting user), `GET /market/status`. Backend also gained CORS
+  middleware (`CORS_ALLOWED_ORIGINS`, defaults to the Next.js dev origin)
+- `pages/` directory from the original spec's structure is unused — the App
+  Router (`app/`) supersedes the older Pages Router; keeping an empty
+  `pages/` would just be confusing
 
-**Success criteria:** A logged-in user sees only their own data across all
-four pages; an unauthenticated visitor is redirected to login.
+**Success criteria:** ✅ Verified — `npx tsc --noEmit`, `npm run lint`, and
+`npm run build` all pass clean; 5 Vitest unit tests cover the API client's
+request/error handling. **Not verified interactively in a browser** — the
+Claude-in-Chrome extension wasn't connected in this environment. Instead:
+booted both the backend and `npm run dev`, confirmed every route returns
+200 with the expected server-rendered content via `curl`, and drove the
+actual cross-origin request flow (register → login → authenticated
+`/users/me` and `/market/status`, with `Origin: http://localhost:3000`)
+confirming correct CORS headers and response shapes matching the
+TypeScript types. Isolation (a logged-in user sees only their own
+positions/decisions) is verified at the API layer (Phase 2/3 pattern,
+re-tested here for the two new endpoints) rather than by clicking through
+two browser sessions. **A human should still click through this once in a
+real browser before relying on it** — see the end-of-mission report.
 
 **Dependencies:** Phase 3 (auth), Phase 11 (feedback data to display).
 

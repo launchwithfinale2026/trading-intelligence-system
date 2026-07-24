@@ -195,8 +195,10 @@ backend/app/
   api/
     auth.py                 register / login / logout / session        [BUILT — Phase 3]
     users.py                 user + profile CRUD, isolation             [BUILT — Phase 2/3]
-    dashboard.py              dashboard read endpoints                  [planned — Phase 12]
+    portfolio.py               GET /portfolio/positions, /decisions      [BUILT — Phase 12]
+    market.py                   GET /market/status                        [BUILT — Phase 12]
     signals.py                 signal history endpoint (GET /signals)   [BUILT — Phase 7]
+    feedback.py                  GET /feedback/performance                 [BUILT — Phase 11]
     dependencies.py             get_current_user, shared deps           [BUILT — Phase 3]
   core/
     config.py                 env-based settings                       [BUILT — Phase 1]
@@ -245,8 +247,14 @@ backend/app/
                                                                                 Phase 10's portfolio/ decision]
   api/feedback.py                       GET /feedback/performance            [BUILT — Phase 11]
 
-frontend/                                 Next.js dashboard                    [planned — Phase 12]
-  app/, components/, pages/, dashboard/
+frontend/                                 Next.js dashboard                    [BUILT — Phase 12]
+  app/                                   App Router pages: /, /login,
+                                          /register, /profile, /history
+  components/                            ProtectedRoute, Nav
+  lib/                                   api.ts (typed fetch client),
+                                          auth-context.tsx (token + user state)
+  (pages/, dashboard/ from the original spec's structure are unused — the
+   App Router in app/ supersedes the older Pages Router)
 
 tests/                                    backend test suite                  [BUILT — Phase 1, grows every phase]
 ```
