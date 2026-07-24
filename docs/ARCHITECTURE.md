@@ -313,7 +313,7 @@ calling code.
 
 ---
 
-## 8. Deployment topology (planned — Phase 13)
+## 8. Deployment topology
 
 ```
    Users (Telegram app)         Users (browser)
@@ -333,6 +333,13 @@ V1 targets free-tier hosting for all three components (frontend, backend,
 database) since this is a personal system for a small group, not a commercial
 product. See [DECISIONS.md](DECISIONS.md) for the reasoning against
 over-provisioning infrastructure this early.
+
+**Status:** the artifacts this topology needs are BUILT —
+`backend/Dockerfile`, `frontend/Dockerfile`, `docker-compose.yml` (local
+orchestration of the whole stack), and CI (`.github/workflows/`). Actually
+standing up hosted instances is a human step (accounts, payment, the
+Telegram bot itself) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the exact
+checklist.
 
 ---
 

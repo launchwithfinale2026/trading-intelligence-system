@@ -411,19 +411,37 @@ real browser before relying on it** — see the end-of-mission report.
 
 ---
 
-## Phase 13 — Online Deployment ⏳
+## Phase 13 — Online Deployment 🚫 blocked on human action
 
 **Goal:** The system is accessible remotely, on free-tier hosting.
 
-**Will build:**
-- Frontend hosting
-- Backend hosting
-- Managed database hosting
-- Secrets management for production environment variables
+**Built (everything that doesn't require creating an account or spending
+money):**
+- `backend/Dockerfile` — multi-stage, runs `alembic upgrade head` before
+  `uvicorn` on every start (never `create_all` in production — Decision 12)
+- `frontend/Dockerfile` — multi-stage, uses Next.js's `output: "standalone"`
+  for a minimal runtime image
+- `docker-compose.yml` — full local stack (Postgres + backend + optional
+  Telegram bot process + frontend), for sanity-checking everything together
+  before deploying anywhere
+- `.github/workflows/backend.yml`, `.github/workflows/frontend.yml` — CI:
+  full test suite / lint / typecheck / build on every push and PR
+- `docs/DEPLOYMENT.md` — the exact human checklist: provider suggestions,
+  required env vars, migration behavior, bot deployment, verification steps
 
-**Success criteria:** The dashboard is reachable over the public internet by
-Jake and friends, backed by the deployed backend and database, with no
-secrets committed to the repo.
+**Not built — genuinely requires a human:**
+- Creating hosting accounts (backend + frontend + database)
+- Entering payment details for any paid tier
+- Creating the Telegram bot via @BotFather (requires a human Telegram account)
+- Buying a domain (optional)
+- Deciding when to flip `ENABLE_SCHEDULED_SCANNING=true` (Decision 16)
+
+**Success criteria:** Everything above the "genuinely requires a human"
+line is done and verified as far as it can be without those accounts —
+Docker/CI configs reviewed carefully, but **not run** (Docker isn't
+installed in the environment this was built in). Full success (dashboard
+reachable over the public internet) is blocked on the human steps in
+`docs/DEPLOYMENT.md`.
 
 **Dependencies:** All prior phases functionally complete.
 

@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // Produces a minimal self-contained server bundle (.next/standalone) —
+  // used by the Docker build so the runtime image doesn't need the full
+  // node_modules tree.
+  output: "standalone",
 };
 
 export default nextConfig;

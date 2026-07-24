@@ -22,3 +22,6 @@ apscheduler
 
 # Phase 4: Telegram bot system
 python-telegram-bot
+
+# Phase 13: deployment (Postgres driver for production DATABASE_URL)
+psycopg2-binary

@@ -1,0 +1,66 @@
+# Local/staging orchestration. NOT a production deployment on its own —
+# see docs/DEPLOYMENT.md for actual hosting guidance. Useful for running
+# the full stack (Postgres + API + Telegram bot + dashboard) in one place
+# to sanity-check the whole system before deploying it anywhere.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: trading
+      POSTGRES_PASSWORD: trading
+      POSTGRES_DB: trading
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trading"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://trading:trading@db:5432/trading
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  # Optional: the Telegram bot as its own process, sharing the backend image.
+  # Only starts successfully once TELEGRAM_BOT_TOKEN is set in .env — see
+  # docs/DEPLOYMENT.md. Run with: docker compose --profile bot up
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "app.telegram.bot"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://trading:trading@db:5432/trading
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - bot
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:

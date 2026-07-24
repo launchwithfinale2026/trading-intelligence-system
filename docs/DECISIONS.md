@@ -363,3 +363,32 @@ replaces it.
 - **Status:** Accepted, with a known gap. **A human should manually click
   through register → login → dashboard → profile update → history → logout
   in a real browser before considering Phase 12 fully trustworthy.**
+
+---
+
+## 18. Deployment artifacts built and reviewed, not executed
+
+- **Date:** 2026-07-23
+- **Decision:** Phase 13 ships `backend/Dockerfile`, `frontend/Dockerfile`,
+  `docker-compose.yml`, two GitHub Actions workflows, and
+  `docs/DEPLOYMENT.md`. Provider suggestions in that doc (Railway/Render/
+  Fly.io + Vercel + managed Postgres) are non-binding recommendations, not
+  commitments — nothing was signed up for. Docker isn't installed in the
+  environment this was built in, so the Dockerfiles are reviewed carefully
+  against multi-stage best practice but **not verified with an actual
+  `docker build`**.
+- **Reasoning:** Everything that's pure configuration (no account, no
+  payment, no third-party credential) is safe and valuable to build now —
+  it's the difference between "deployment is a followup project" and
+  "deployment is running one checklist." Actually creating hosting
+  accounts, entering payment details, and creating the Telegram bot are
+  explicit mission stop-conditions (human financial/product decisions,
+  human authentication) and were not attempted.
+- **Alternatives considered:** Skipping Docker/CI entirely and leaving
+  Phase 13 as pure documentation. Rejected — the mission's build list
+  explicitly names "Docker support (optional)" and "Deployment
+  configuration" as things to build autonomously; a checklist alone is a
+  weaker deliverable than a checklist plus working configs it points to.
+- **Status:** Accepted, with a known gap (unverified Docker builds — flagged
+  in docs/DEPLOYMENT.md's own header and the end-of-mission report). Treat
+  the first real `docker build` as the actual verification step.
