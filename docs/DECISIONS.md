@@ -392,3 +392,81 @@ replaces it.
 - **Status:** Accepted, with a known gap (unverified Docker builds — flagged
   in docs/DEPLOYMENT.md's own header and the end-of-mission report). Treat
   the first real `docker build` as the actual verification step.
+
+---
+
+## 19. Quality Filter added as a second, additional gate — not a replacement
+
+- **Date:** 2026-07-24
+- **Decision:** `analysis/filtering.py`'s `evaluate_quality()` (liquidity,
+  volatility, trend, volume, price movement) runs in `Scanner.scan()`
+  *alongside* the pre-existing `analysis/scoring.py`'s `evaluate_filters()`
+  (liquidity, market cap, trend, volume-surge) — a candidate must pass
+  both, not just the new one.
+- **Reasoning:** The two checks overlap (both look at liquidity/trend/
+  volume) but each also catches something real the other doesn't: market
+  cap vs. actual historical volatility bounds vs. today's raw price
+  movement. Replacing the old filter outright would have meant re-deriving
+  and re-testing market-cap-based quality filtering for no benefit, and
+  risked silently changing behavior for symbols the old filter correctly
+  excluded. Layering the new filter on top is provably stricter (a test
+  proves a symbol that passes the old filter alone gets correctly rejected
+  by the new one for excessive volatility) with zero regression on the 34
+  scanner/scoring tests that existed before this change — all still pass
+  unmodified.
+- **Alternatives considered:** Replacing `evaluate_filters` with
+  `evaluate_quality` entirely. Rejected for the regression risk above, and
+  because market-cap filtering (from the original Phase 6 spec) is still a
+  legitimate, separate quality signal worth keeping.
+- **Status:** Accepted.
+
+---
+
+## 20. Momentum Breakout added as a third strategy, not a merge of the other two
+
+- **Date:** 2026-07-24
+- **Decision:** `strategies/momentum_breakout.py` is a new, distinct
+  `Strategy` implementation registered alongside (not replacing)
+  `MomentumStrategy` and `BreakoutStrategy` in `engine/pipeline.py`'s
+  `DEFAULT_STRATEGIES`. It combines structure-break + momentum + volume
+  conditions from the other two, plus an RSI-overbought guard neither of
+  them has.
+- **Reasoning:** The existing two strategies were already deterministic,
+  tested, and explainable — rewriting them into one merged strategy would
+  have thrown away working, verified logic for a cosmetic rename. A new
+  third strategy that's stricter (requires more conditions at once) and
+  adds a genuinely new signal (RSI) is a real enhancement; the scan
+  pipeline already supports running multiple strategies per candidate, so
+  there's no cost to having three instead of one.
+- **Alternatives considered:** Merging momentum.py and breakout.py into a
+  single file/class. Rejected — would require rewriting and re-verifying
+  already-correct code to produce something with strictly less flexibility
+  (can no longer get a pure momentum-only or breakout-only signal).
+- **Status:** Accepted.
+
+---
+
+## 21. Standalone scanner worker added alongside the existing scheduler, not replacing it
+
+- **Date:** 2026-07-24
+- **Decision:** `engine/worker.py` (`python -m app.engine.worker`) is a new
+  standalone process running scan + position-monitor cycles in a loop.
+  `core/scheduler.py` and `main.py`'s `ENABLE_SCHEDULED_SCANNING`-gated
+  APScheduler jobs (Phase 5/9) are untouched and still work independently.
+- **Reasoning:** The mission's "Scanner Worker" requirement (runs
+  continuously, scans on schedule, handles failures, logs activity) reads
+  as its own deliverable, matching the same "separate long-running process"
+  pattern already used for the Telegram bot (Decision — see `bot.py`'s
+  docstring) rather than something embedded in the API server. Keeping
+  both options (API-embedded scheduler vs. standalone worker process) lets
+  a deployment pick whichever fits — e.g. a single combined API+scheduler
+  container vs. a dedicated worker service in `docker-compose.yml`
+  (`--profile worker`), which is where it was added.
+- **Alternatives considered:** Only using the existing API-embedded
+  scheduler and treating "Scanner Worker" as already satisfied. Rejected —
+  the spec explicitly asked for a background worker with its own failure
+  handling and logging as a named deliverable; a genuinely separate,
+  independently-runnable process is a more literal and more useful answer
+  than pointing at code that happens to run on a schedule inside a
+  different process.
+- **Status:** Accepted.

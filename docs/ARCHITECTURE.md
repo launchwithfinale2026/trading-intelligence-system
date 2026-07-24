@@ -89,7 +89,7 @@ today's state.
 
 | Subsystem | Why it exists |
 |---|---|
-| **Market Scanner** | Without a scanner, someone has to manually decide what to look at. The scanner narrows a large universe down to a small, high-quality candidate list so the strategy engine only spends effort on things worth evaluating. |
+| **Market Scanner** | Without a scanner, someone has to manually decide what to look at. The scanner narrows a large universe down to a small, high-quality candidate list so the strategy engine only spends effort on things worth evaluating. Internally it's two independent gates a candidate must clear — `analysis/scoring.py`'s liquidity/market-cap/trend/volume check and `analysis/filtering.py`'s explicit five-criteria Quality Filter (liquidity, volatility, trend, volume, price movement) added in Phase 14 — before `analysis/scoring.py` ranks whatever survives. |
 | **Strategy Engine** | Encodes the actual trading logic (momentum, breakout, ...) as discrete, testable units. Keeping strategies separate from the scanner means new strategies can be added without touching filtering logic, and vice versa. |
 | **Risk Engine** | Every signal is useless without a position size and a defined loss. Centralizing sizing logic means every strategy automatically respects a user's account size and risk preference instead of each strategy re-implementing sizing. |
 | **Portfolio Tracker** | Once a user opens a position, something has to watch it against the stop/target and know its current status. This is intentionally separate from "did we recommend this" (Strategy Engine) — one produces ideas, the other tracks commitments. |
@@ -216,15 +216,22 @@ backend/app/
     provider.py                 MarketDataProvider interface (vendor-neutral) [BUILT — Phase 5]
     yfinance_provider.py          YFinanceProvider implementation              [BUILT — Phase 5]
     factory.py                     provider selection via config                [BUILT — Phase 5]
-    scanner.py                    quality filters, ranking               [BUILT — Phase 6]
-    universe.py                    curated symbol list (editable)          [BUILT — Phase 9]
+    scanner.py                    quality filters, ranking               [BUILT — Phase 6, extended Phase 14]
+    universe.py                    curated symbol list (editable)          [BUILT — Phase 9, updated Phase 14]
   strategies/
     base.py                       Strategy base class / Signal contract  [BUILT — Phase 7]
     momentum.py                     momentum strategy                    [BUILT — Phase 7]
     breakout.py                      breakout strategy                    [BUILT — Phase 7]
+    momentum_breakout.py              flagship combined strategy (structure   [BUILT — Phase 14]
+                                       break + momentum + volume + RSI guard)
   analysis/
-    scoring.py                        candidate scoring                    [BUILT — Phase 6]
-    technical.py                        indicators (trend, volume, etc.)    [BUILT — Phase 6, extended Phase 7]
+    scoring.py                        candidate scoring (Opportunity Ranking) [BUILT — Phase 6]
+    filtering.py                       Quality Filter: liquidity/volatility/  [BUILT — Phase 14]
+                                        trend/volume/price-movement, each
+                                        with pass/fail reasoning
+    technical.py                        indicators: SMA, avg volume, %change,  [BUILT — Phase 6/7,
+                                         uptrend, RSI, historical volatility,   extended Phase 14]
+                                         trend_direction
   risk/
     calculator.py                       position sizing                     [BUILT — Phase 8]
   repositories/position_repository.py, services/position_service.py
@@ -240,6 +247,9 @@ backend/app/
   engine/
     pipeline.py            scan -> strategies -> risk -> alert, end-to-end   [BUILT — Phase 9; not in the
                             orchestration, gated off by default (Decision 16)  original spec's structure]
+    worker.py                standalone continuous scanner process             [BUILT — Phase 14; alternative
+                              (python -m app.engine.worker), no bot token        to the API-embedded scheduler,
+                              required — no-ops safely and logs when unset        not a replacement for it]
   repositories/trade_result_repository.py, services/feedback_service.py
                                          decision + outcome tracking          [BUILT — Phase 11; superseded the
                                                                                 originally-planned feedback/

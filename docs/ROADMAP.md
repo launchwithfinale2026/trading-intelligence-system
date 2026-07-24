@@ -447,6 +447,71 @@ reachable over the public internet) is blocked on the human steps in
 
 ---
 
+## Phase 14 — Market Observation Layer Upgrade ✅
+
+**Completed:** 2026-07-24
+
+**Goal:** Requested as a standalone upgrade to make the autonomous market
+observation loop (Market Data Provider → Market Universe → Quality Filter →
+Technical Analysis → Strategy Engine → Opportunity Ranking → Risk
+Calculation → Telegram Alert) more complete and explicit. Most of this
+pipeline already existed from Phases 5–9; this phase is the delta between
+what was requested and what was already built, not a rebuild.
+
+**Already satisfied by prior phases (verified, not rebuilt):**
+- Market Data Provider abstraction + yfinance implementation — Phase 5
+- Strategy framework (base + momentum + breakout, deterministic/testable/
+  explainable) — Phase 7
+- Telegram alert pipeline requiring no credentials to format/test — Phase 9
+
+**Built new this phase:**
+- `market/universe.py` — updated `DEFAULT_UNIVERSE` to the exact requested
+  list (SPY, QQQ, NVDA, MSFT, AAPL, GOOG, AMZN, META, AMD, TSLA), replacing
+  the broader 15-symbol list from Phase 9
+- `analysis/technical.py` — added `rsi()`, `historical_volatility()`
+  (stdev of daily returns), `trend_direction()` (MA-crossover up/down/flat)
+- `analysis/filtering.py` (new module) — the explicit five-criteria
+  Quality Filter (liquidity, volatility, trend, volume, price movement),
+  each with human-readable pass/fail reasoning. Wired into `Scanner.scan()`
+  as an **additional** gate alongside the existing `evaluate_filters` — a
+  candidate must clear both; proven with a test where a symbol passes the
+  original filter but is correctly rejected by the new one for being too
+  erratic
+- `market/scanner.py` — `RankedCandidate` now carries a `reasons: list[str]`
+  field (the Quality Filter's positive reasons), satisfying "store
+  reasoning" for the Opportunity Ranking stage
+- `strategies/momentum_breakout.py` (new) — the flagship combined strategy:
+  structure break + momentum + volume confirmation + an RSI-overbought
+  guard the simpler momentum/breakout strategies don't have. Added
+  alongside (not replacing) the existing two strategies in
+  `engine/pipeline.py`'s `DEFAULT_STRATEGIES`
+- `engine/worker.py` (new) — standalone, credential-free Scanner Worker
+  process (`python -m app.engine.worker`): loops scan + position-monitor
+  cycles continuously, catches and logs per-cycle failures without dying,
+  runs on `SCAN_INTERVAL_SECONDS`. Independent of (not a replacement for)
+  the existing API-embedded scheduler from Phase 5/9 — two ways to run the
+  same cycles, added as its own `docker-compose.yml` service
+  (`--profile worker`)
+- `telegram/alerts.py` — renamed the `Strategy:` alert field to `Setup:` to
+  match the requested message format exactly (Symbol/Setup/Entry/Stop/
+  Target/Confidence/Reasoning)
+
+**Success criteria:** ✅ Verified — 28 new tests: 10 for the three new
+indicators (all hand-computed, including an engineered ±10%/±10% return
+sequence giving an exact stdev of 10), 6 for the quality filter (clean
+pass-all case plus one isolated failure per criterion), 6 for the momentum
+breakout strategy (fires + 5 distinct no-signal cases, including an
+overbought-RSI rejection), 2 additional scanner tests (reasoning present;
+an erratic symbol rejected by the new gate despite passing the old one), 4
+for the worker (correct cycle count, survives an exception mid-loop,
+doesn't oversleep, `max_iterations=0` runs nothing). Live-smoke-tested the
+worker for one real cycle with no Telegram token set — logs a clean no-op
+rather than crashing. 164/164 full suite passing.
+
+**Dependencies:** Phases 5, 6, 7, 9 (the pipeline stages this extends).
+
+---
+
 ## Future features (explicitly not in v1 scope)
 
 Tracked here so they aren't silently designed around, but not built or

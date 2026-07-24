@@ -145,3 +145,46 @@ def test_scan_respects_custom_config() -> None:
     scanner = Scanner(provider, config=strict_config)
 
     assert scanner.scan(["AMD"]) == []
+
+
+def test_scan_rejects_erratic_symbol_even_though_it_passes_the_core_filter() -> None:
+    """A symbol can clear evaluate_filters (liquidity/market-cap/trend/
+    volume-surge) while still being an erratic, low-quality setup — the
+    additional Quality Filter (analysis/filtering.py) must catch that.
+    """
+    provider = FakeProvider()
+    closes = [100.0]
+    for i in range(49):
+        prev = closes[-1]
+        closes.append(prev * 1.20 if i % 2 == 0 else prev * 0.85)
+    provider.register(
+        "ERR",
+        price=Decimal(str(closes[-1])),
+        volume=5_000_000,
+        market_cap=Decimal("5000000000"),
+        closes=closes,
+        volumes=[1_000_000] * 49 + [5_000_000],
+    )
+
+    scanner = Scanner(provider)
+
+    assert scanner.scan(["ERR"]) == []
+
+
+def test_ranked_candidate_carries_positive_reasoning() -> None:
+    provider = FakeProvider()
+    provider.register(
+        "NVDA",
+        price=Decimal(120),
+        volume=3_000_000,
+        market_cap=Decimal("3000000000000"),
+        closes=_flat_series(100.0, 49) + [120.0],
+        volumes=_flat_series(1_000_000, 49) + [3_000_000],
+    )
+
+    scanner = Scanner(provider)
+    results = scanner.scan(["NVDA"])
+
+    assert len(results) == 1
+    assert len(results[0].reasons) > 0
+    assert all(reason.startswith("+") for reason in results[0].reasons)

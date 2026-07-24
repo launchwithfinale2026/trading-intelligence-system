@@ -28,7 +28,7 @@ def format_alert(signal: Signal, position_size: PositionSize) -> str:
     return (
         "🚨 HIGH QUALITY SETUP\n\n"
         f"Symbol: {signal.symbol}\n"
-        f"Strategy: {signal.strategy_name}\n"
+        f"Setup: {signal.strategy_name}\n"
         f"Direction: {signal.direction.value.upper()}\n"
         f"Entry: {signal.entry}\n"
         f"Position: {position_size.shares} shares (${position_size.position_value})\n"

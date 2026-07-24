@@ -51,6 +51,25 @@ services:
     profiles:
       - bot
 
+  # Optional: standalone scanner worker (continuous scan + position-monitor
+  # loop) as its own process, independent of the API's opt-in
+  # ENABLE_SCHEDULED_SCANNING scheduler. Runs safely with no bot token set
+  # (each cycle no-ops, logged). Run with: docker compose --profile worker up
+  scanner-worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "app.engine.worker"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://trading:trading@db:5432/trading
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - worker
+
   frontend:
     build:
       context: ./frontend

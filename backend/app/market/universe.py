@@ -7,19 +7,14 @@ decide which assets they actually want watched.
 """
 
 DEFAULT_UNIVERSE: list[str] = [
-    "AAPL",
-    "MSFT",
-    "GOOGL",
-    "AMZN",
+    "SPY",
+    "QQQ",
     "NVDA",
+    "MSFT",
+    "AAPL",
+    "GOOG",
+    "AMZN",
     "META",
-    "TSLA",
     "AMD",
-    "AVGO",
-    "NFLX",
-    "COST",
-    "JPM",
-    "V",
-    "UNH",
-    "XOM",
+    "TSLA",
 ]

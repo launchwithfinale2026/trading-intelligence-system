@@ -32,6 +32,7 @@ from app.strategies.base import Signal as StrategySignal
 from app.strategies.base import Strategy
 from app.strategies.breakout import BreakoutStrategy
 from app.strategies.momentum import MomentumStrategy
+from app.strategies.momentum_breakout import MomentumBreakoutStrategy
 from app.telegram.alerts import send_alert, send_position_closed_alert
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 _HIGH_CONFIDENCE_THRESHOLD = 75
 _HISTORY_PERIOD = "6mo"
 
-DEFAULT_STRATEGIES: list[Strategy] = [MomentumStrategy(), BreakoutStrategy()]
+DEFAULT_STRATEGIES: list[Strategy] = [MomentumStrategy(), BreakoutStrategy(), MomentumBreakoutStrategy()]
 
 
 def _should_alert(preference: AlertPreference, confidence: int) -> bool:
