@@ -6,3 +6,7 @@ pydantic-settings
 python-dotenv
 pytest
 httpx
+
+# Phase 2: User profile system
+alembic
+email-validator
