@@ -188,21 +188,29 @@ conditions aren't met.
 
 ---
 
-## Phase 8 — Risk Engine ⏳
+## Phase 8 — Risk Engine ✅
+
+**Completed:** 2026-07-23 (built ahead of Phase 7 — the calculator only needs
+account size + entry/stop, not an actual Signal object; see ordering note above)
 
 **Goal:** Every signal gets a position size derived from the user's account
 and risk preference.
 
-**Will build:**
-- `risk/calculator.py` — sizing from entry/stop distance + risk %
-- Aggressive (2% risk) / conservative (0.5% risk) presets, configurable per
-  profile
+**Built:**
+- `risk/calculator.py` — `calculate_position_size()`: whole-share sizing
+  from entry/stop distance + risk %, works for both long and short signals
+- Aggressive (2%) / moderate (1%, this project's own interpolation — see
+  Decision 14) / conservative (0.5%) presets keyed by `RiskPreference`
+- Explicit `ValueError`s for non-positive account/entry or a zero-distance
+  stop, rather than silently returning a nonsensical size
 
-**Success criteria:** Given a known account size, risk %, entry, and stop,
-the calculator returns the exact expected position size — covered by unit
-tests with hand-computed expected values.
+**Success criteria:** ✅ Verified — 8 unit tests with hand-computed expected
+values (aggressive/moderate/conservative, long/short, the zero-affordable-
+shares edge case, and all three invalid-input cases).
 
-**Dependencies:** Phase 2 (user risk preference), Phase 7 (signals to size).
+**Dependencies:** Phase 2 (user risk preference). Wiring sized signals into
+an actual alert still depends on Phase 7 (signals to size) and happens in
+Phase 9.
 
 ---
 

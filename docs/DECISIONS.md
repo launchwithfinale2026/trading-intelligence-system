@@ -258,3 +258,25 @@ replaces it.
   rejected as unnecessary infrastructure for a handful of users; would be
   revisited if immediate token revocation becomes a real requirement.
 - **Status:** Accepted.
+
+---
+
+## 14. Moderate risk preference = 1% of account per trade
+
+- **Date:** 2026-07-23
+- **Decision:** The build spec explicitly defines aggressive = 2% risk and
+  conservative = 0.5% risk per trade, but doesn't define "moderate" (which
+  exists as a `RiskPreference` value alongside the other two). This project
+  sets moderate = 1%.
+- **Reasoning:** 1% sits at a natural midpoint and is also the single most
+  common default risk-per-trade figure in general trading education, so it's
+  a reasonable value to ship rather than leaving the enum member undefined
+  or blocking on a human decision for one number.
+- **Alternatives considered:** Omitting "moderate" until a human specifies
+  it. Rejected — the enum already existed from Phase 2 and leaving it
+  partially implemented would make `RiskPreference.MODERATE` a landmine
+  (accepted by the API, then failing or behaving oddly in the risk engine).
+  This is exactly the kind of small, low-stakes, easily-revisited numeric
+  choice the autonomous build mission calls out as not requiring a human.
+- **Status:** Accepted — trivially revisable; change the one constant in
+  `risk/calculator.py` if a different value is preferred.

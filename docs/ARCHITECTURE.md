@@ -223,7 +223,7 @@ backend/app/
     scoring.py                        candidate scoring                    [BUILT — Phase 6]
     technical.py                        indicators (trend, volume, etc.)    [BUILT — Phase 6, extended Phase 7]
   risk/
-    calculator.py                       position sizing                     [planned — Phase 8]
+    calculator.py                       position sizing                     [BUILT — Phase 8]
   portfolio/
     positions.py                        active position tracking              [planned — Phase 10]
   telegram/
