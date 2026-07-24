@@ -213,3 +213,48 @@ replaces it.
   against a simulated broker in V1. Rejected — out of scope per the build
   spec's explicit "Future Features — Do Not Build Now" list.
 - **Status:** Accepted.
+
+---
+
+## 12. Schema managed by Alembic migrations, not `create_all`
+
+- **Date:** 2026-07-23
+- **Decision:** Starting with Phase 2's `users`/`profiles` tables, all schema
+  changes are Alembic migrations committed to the repo. The FastAPI app no
+  longer calls `Base.metadata.create_all()` on startup. Test fixtures still
+  use `create_all` against a throwaway in-memory SQLite database, for speed —
+  that's a test-only convenience, not how the real database is managed.
+- **Reasoning:** `create_all` cannot alter existing tables or express "how do
+  I get from schema version N to N+1," which is exactly what's needed once
+  Postgres is used in production (Decision-adjacent: the spec prefers
+  Postgres). Deciding this in Phase 2, while there are only two tables, is
+  far cheaper than retrofitting migrations after several phases of ad hoc
+  schema changes.
+- **Alternatives considered:** Keep `create_all` for as long as possible and
+  add Alembic only before Phase 13 deployment. Rejected — every phase from
+  here adds tables/columns, so deferring migrations just means writing the
+  same schema history retroactively, with more risk of it not matching
+  reality.
+- **Status:** Accepted.
+
+---
+
+## 13. Stateless JWT auth with bcrypt password hashing
+
+- **Date:** 2026-07-23
+- **Decision:** Authentication uses bcrypt for password hashing (via the
+  `bcrypt` package directly) and short-lived, stateless JWT bearer tokens
+  (via `PyJWT`) for session handling. There is no server-side session store;
+  "logout" is a client-side token discard.
+- **Reasoning:** bcrypt is a proven, purpose-built password hashing algorithm
+  with no configuration footguns. Using the `bcrypt` package directly (rather
+  than `passlib`) avoids a real, current compatibility break between recent
+  `passlib` releases and `bcrypt`>=4.1. Stateless JWTs need no session table
+  and no shared cache, which fits a small, low-traffic personal system —
+  the tradeoff (can't force-revoke a single token before it expires) is
+  acceptable at this scale and is mitigated by short expiry.
+- **Alternatives considered:** `passlib[bcrypt]` — rejected due to the
+  compatibility issue above. Server-side sessions (DB- or Redis-backed) —
+  rejected as unnecessary infrastructure for a handful of users; would be
+  revisited if immediate token revocation becomes a real requirement.
+- **Status:** Accepted.

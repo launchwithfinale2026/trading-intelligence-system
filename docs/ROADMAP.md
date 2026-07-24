@@ -41,42 +41,52 @@ criteria are met and its tests pass.** Partial work stays In Progress.
 
 ---
 
-## Phase 2 — User Profile System 🔜
+## Phase 2 — User Profile System ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** Create user profiles with isolated data.
 
-**Will build:**
-- `users` table (username, email, password hash)
-- `profiles` table (account_size, risk preference, trading style, alert preference)
-- Per-user data isolation enforced at the query layer
+**Built:**
+- `users` and `profiles` tables, migrated via Alembic (not `create_all`)
+- `TimestampMixin`, `RiskPreference`/`TradingStyle`/`AlertPreference` enums shared
+  between the DB and API layers
+- Repository layer (`UserRepository`, `ProfileRepository`) + service layer
+  (`UserService`) enforcing per-user isolation
+- Domain exceptions (`NotFoundError`, `ConflictError`, `ForbiddenError`)
 
-**Success criteria:** Two seeded users (e.g. Jake — aggressive/momentum,
-a friend — conservative/swing) can each be read back with correct, isolated
-profile data; a user cannot read another user's profile through the API.
+**Success criteria:** ✅ Verified — `UserService.get_profile` /
+`update_profile` require `requesting_user_id == target_user_id` and raise
+`ForbiddenError` otherwise; covered by 9 unit tests including two-user
+isolation and duplicate username/email rejection.
 
 **Dependencies:** Phase 1 (database connection).
 
 ---
 
-## Phase 3 — Authentication ⏳
+## Phase 3 — Authentication ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** Users can securely register, log in, and log out; dashboard routes
 are protected.
 
-**Will build:**
-- Register / login / logout endpoints
-- Password hashing (never plaintext, never reversible)
-- Session/token handling
-- Route protection middleware/dependency
+**Built:**
+- `POST /auth/register`, `POST /auth/login` (OAuth2 password flow, JWT), `POST /auth/logout`
+- Password hashing via `bcrypt` (never plaintext, never reversible)
+- Stateless JWT bearer tokens (`core/security.py`), `get_current_user` dependency
+- `GET /users/me`, `PATCH /users/me/profile` protected and isolation-tested
+- Domain-exception → HTTP-status translation (`core/exception_handlers.py`)
 
-**Success criteria:** Unauthenticated requests to protected routes are
-rejected; a registered user can log in and access their own data only.
+**Success criteria:** ✅ Verified — unauthenticated requests to `/users/me`
+return 401; wrong password returns 401; a logged-in user can only read/update
+their own profile (19 automated tests + a live end-to-end `curl` smoke test).
 
 **Dependencies:** Phase 2 (users must exist to authenticate).
 
 ---
 
-## Phase 4 — Telegram System ⏳
+## Phase 4 — Telegram System 🔜
 
 **Goal:** A Telegram bot that can identify which user is messaging and route
 commands accordingly.

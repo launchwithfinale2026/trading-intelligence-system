@@ -193,17 +193,23 @@ build status.
 backend/app/
   main.py                 FastAPI entrypoint, startup/shutdown         [BUILT — Phase 1]
   api/
-    auth.py                 register / login / logout / session        [planned — Phase 3]
-    users.py                 user + profile CRUD, isolation             [planned — Phase 2]
+    auth.py                 register / login / logout / session        [BUILT — Phase 3]
+    users.py                 user + profile CRUD, isolation             [BUILT — Phase 2/3]
     dashboard.py              dashboard read endpoints                  [planned — Phase 12]
     signals.py                 signal history / detail endpoints        [planned — Phase 7]
+    dependencies.py             get_current_user, shared deps           [BUILT — Phase 3]
   core/
     config.py                 env-based settings                       [BUILT — Phase 1]
-    security.py                password hashing, token handling        [planned — Phase 3]
+    security.py                password hashing, token handling        [BUILT — Phase 3]
+    exceptions.py               domain error types                     [BUILT — Phase 2]
+    exception_handlers.py        domain error -> HTTP translation        [BUILT — Phase 3]
     scheduler.py               recurring job runner                    [planned — Phase 5]
   database/
     database.py                engine/session/Base                     [BUILT — Phase 1]
-    models.py                   SQLAlchemy models                      [seeded — Phase 1, grows every phase]
+    models/                     SQLAlchemy models (User, Profile, ...)   [BUILT — Phase 2, grows every phase]
+  repositories/                 thin per-model data access                [BUILT — Phase 2]
+  services/                      isolation-enforcing business logic         [BUILT — Phase 2]
+  schemas/                        Pydantic request/response models           [BUILT — Phase 2/3]
   market/
     provider.py                 MarketDataProvider interface + yfinance [planned — Phase 5]
     scanner.py                    quality filters, ranking               [planned — Phase 6]
@@ -240,8 +246,8 @@ each phase adds tables.
 
 | Table | Phase | Purpose | Key relationships |
 |---|---|---|---|
-| `users` | 2 | Login identity (username, email, password hash) | 1:1 with `profiles` |
-| `profiles` | 2 | Per-user trading config (account_size, risk preference, style, alert preference) | belongs to `users` |
+| `users` ✅ | 2 | Login identity (username, email, password hash, telegram_id) | 1:1 with `profiles` |
+| `profiles` ✅ | 2 | Per-user trading config (account_size, risk preference, style, alert preference) | belongs to `users` |
 | `signals` | 7 | Every signal a strategy produced, regardless of user decision | belongs to a strategy run |
 | `decisions` | 11 | A user's OPEN/IGNORE response to a signal | belongs to `users` + `signals` |
 | `positions` | 10 | Active/closed positions opened from an accepted signal | belongs to `users` + `signals` |

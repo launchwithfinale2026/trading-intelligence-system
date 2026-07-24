@@ -12,6 +12,11 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./trading.db"
 
+    # Auth. secret_key has a dev-only default so local setup works out of the
+    # box; production deployments MUST override it via SECRET_KEY in .env.
+    secret_key: str = "dev-only-insecure-secret-change-me"
+    access_token_expire_minutes: int = 60 * 24
+
 
 @lru_cache
 def get_settings() -> Settings:

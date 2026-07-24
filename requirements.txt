@@ -10,3 +10,8 @@ httpx
 # Phase 2: User profile system
 alembic
 email-validator
+
+# Phase 3: Authentication
+bcrypt
+PyJWT
+python-multipart
