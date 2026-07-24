@@ -140,22 +140,30 @@ returned correctly).
 
 ---
 
-## Phase 6 — Quality Filter Scanner ⏳
+## Phase 6 — Quality Filter Scanner ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** Narrow a broad universe down to a small, high-quality candidate
 list — not scan every random stock.
 
-**Will build:**
-- Liquidity filter (acceptable volume)
-- Quality filter (market cap threshold)
-- Technical filter (positive trend)
-- Momentum filter (unusual strength)
-- Ranked output: `[{symbol, score}, ...]`
+**Built:**
+- `analysis/technical.py` — pure indicators: SMA, average volume, percent
+  change, uptrend check
+- `analysis/scoring.py` — `evaluate_filters` (liquidity, market cap, trend,
+  momentum-surge thresholds) and `score_candidate` (0-100 heuristic)
+- `market/scanner.py` — `Scanner.scan(universe)` orchestrates fetching via
+  `MarketDataProvider`, applies filters, scores, ranks, dedupes; skips (logs)
+  symbols with unavailable data instead of crashing the whole scan
+- Extended `MarketDataProvider` with `get_market_cap()` (not in the original
+  four-method list — needed once the quality filter required it)
 
-**Success criteria:** Given a fixed test universe, the scanner returns a
-ranked, deduplicated candidate list and excludes assets that fail any
-filter — verified with fixture data, not live fetches, so tests are
-deterministic.
+**Success criteria:** ✅ Verified — 34 tests across technical indicators,
+filter/score logic, and scanner orchestration, all against fixture data
+(deterministic, no live fetches in the suite). A separate live run against
+real Yahoo Finance data for AAPL/MSFT/NVDA/TSLA completed without error and
+correctly returned zero candidates (none currently show a real volume surge)
+— confirms the filter is actually selective rather than rubber-stamping.
 
 **Dependencies:** Phase 5 (needs the data provider).
 

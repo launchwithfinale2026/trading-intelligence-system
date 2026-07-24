@@ -214,14 +214,14 @@ backend/app/
     provider.py                 MarketDataProvider interface (vendor-neutral) [BUILT — Phase 5]
     yfinance_provider.py          YFinanceProvider implementation              [BUILT — Phase 5]
     factory.py                     provider selection via config                [BUILT — Phase 5]
-    scanner.py                    quality filters, ranking               [planned — Phase 6]
+    scanner.py                    quality filters, ranking               [BUILT — Phase 6]
   strategies/
     base.py                       Strategy base class / Signal contract  [planned — Phase 7]
     momentum.py                     momentum strategy                    [planned — Phase 7]
     breakout.py                      breakout strategy                    [planned — Phase 7]
   analysis/
-    scoring.py                        candidate scoring                    [planned — Phase 6]
-    technical.py                        indicators (trend, volume, etc.)    [planned — Phase 6/7]
+    scoring.py                        candidate scoring                    [BUILT — Phase 6]
+    technical.py                        indicators (trend, volume, etc.)    [BUILT — Phase 6, extended Phase 7]
   risk/
     calculator.py                       position sizing                     [planned — Phase 8]
   portfolio/
@@ -270,7 +270,8 @@ user has isolated data" principle in [DECISIONS.md](DECISIONS.md).
                 |  get_price(symbol)          |
                 |  get_history(symbol, range)  |
                 |  get_volume(symbol)           |
-                |  get_market_status()           |
+                |  get_market_cap(symbol)         |
+                |  get_market_status()             |
                 +---------------------------+
                          ^
                          | implements

@@ -78,6 +78,23 @@ def test_get_history_parses_ohlcv_into_price_points(mock_ticker_cls: MagicMock) 
 
 
 @patch("app.market.yfinance_provider.yf.Ticker")
+def test_get_market_cap_returns_decimal(mock_ticker_cls: MagicMock) -> None:
+    mock_ticker_cls.return_value.fast_info = {"marketCap": 3_500_000_000_000.5}
+
+    market_cap = YFinanceProvider().get_market_cap("AAPL")
+
+    assert market_cap == Decimal("3500000000000.50")
+
+
+@patch("app.market.yfinance_provider.yf.Ticker")
+def test_get_market_cap_raises_when_missing(mock_ticker_cls: MagicMock) -> None:
+    mock_ticker_cls.return_value.fast_info = {}
+
+    with pytest.raises(MarketDataError):
+        YFinanceProvider().get_market_cap("AAPL")
+
+
+@patch("app.market.yfinance_provider.yf.Ticker")
 def test_get_history_raises_on_empty_result(mock_ticker_cls: MagicMock) -> None:
     mock_ticker_cls.return_value.history.return_value = pd.DataFrame()
 

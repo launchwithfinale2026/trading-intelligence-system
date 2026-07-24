@@ -71,6 +71,13 @@ class YFinanceProvider(MarketDataProvider):
             for index, row in frame.iterrows()
         ]
 
+    def get_market_cap(self, symbol: str) -> Decimal:
+        fast_info = self._fast_info(symbol)
+        market_cap = fast_info.get("marketCap")
+        if market_cap is None:
+            raise MarketDataError(f"no market cap available for {symbol!r}")
+        return Decimal(str(market_cap)).quantize(_CENT, rounding=ROUND_HALF_UP)
+
     def get_market_status(self) -> MarketStatus:
         """US equity regular-session hours (9:30-16:00 America/New_York, Mon-Fri).
 

@@ -58,3 +58,11 @@ class MarketDataProvider(ABC):
     @abstractmethod
     def get_market_status(self) -> MarketStatus:
         """Whether the market is currently open, as of now."""
+
+    @abstractmethod
+    def get_market_cap(self, symbol: str) -> Decimal:
+        """Latest known market capitalization for symbol.
+
+        Added alongside the Phase 6 quality scanner, which filters on a
+        market cap threshold — the original four methods didn't cover it.
+        """
