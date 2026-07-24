@@ -247,18 +247,37 @@ Phase 9.
 
 ---
 
-## Phase 9 — Telegram Alerts ⏳
+## Phase 9 — Telegram Alerts ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** Signals reach users as formatted, actionable Telegram messages.
 
-**Will build:**
-- Alert formatting (symbol, strategy, entry, position, stop, target,
-  confidence, reasoning)
-- `OPEN` / `IGNORE` reply handling wired to the signal that triggered the alert
+**Built:**
+- `telegram/alerts.py` — `format_alert()` (symbol, strategy, direction,
+  entry, sized position, stop, target, confidence, reasoning, plus an
+  embedded `Signal ID:` footer) and `send_alert()` (per-user send that logs
+  and continues rather than aborting the batch on one user's failure)
+- Plain-text `OPEN`/`IGNORE` reply handling (`handlers.handle_text_reply`),
+  in addition to the `/open`/`/ignore` commands from Phase 4 — this is what
+  actually delivers "reply OPEN or IGNORE to the alert," matching the
+  original spec's example UX. Both paths share one `_record_decision_and_reply`
+  function so there's exactly one place decision-recording logic lives.
+- `engine/pipeline.py` — `run_scan_cycle()`: scans the curated universe
+  (`market/universe.py`), evaluates both strategies, persists any signal,
+  and alerts every linked user whose `alert_preference` allows it, sized to
+  their own account/risk (skipping users a zero-share position would result
+  in). Registered with the Phase 5 scheduler **only** if
+  `ENABLE_SCHEDULED_SCANNING=true` — off by default; see Decision 16.
 
-**Success criteria:** A generated signal produces a correctly formatted
-Telegram message, and a reply of `OPEN` or `IGNORE` is correctly attributed
-to the right user and signal.
+**Success criteria:** ✅ Verified — 3 formatting tests (including an
+extract/format round-trip), 5 additional reply-handler tests (case
+insensitivity, ignoring unrelated text, ignoring non-alert replies), and 7
+pipeline tests covering: alerting a wired-up user, skipping an unlinked
+user, skipping an opted-out user, alerting a high-confidence-only user for
+a qualifying signal, skipping a user whose risk budget affords zero shares,
+alerting multiple users independently, and returning 0 when nothing
+qualifies. 108/108 suite passing.
 
 **Dependencies:** Phase 4 (bot), Phase 7 (signals), Phase 8 (sized signals).
 

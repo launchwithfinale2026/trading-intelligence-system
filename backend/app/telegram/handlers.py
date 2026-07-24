@@ -19,6 +19,7 @@ from app.domain.enums import DecisionType
 from app.market.factory import get_market_data_provider
 from app.repositories.user_repository import UserRepository
 from app.services.decision_service import DecisionService
+from app.telegram.alerts import extract_signal_id
 
 logger = logging.getLogger(__name__)
 
@@ -109,18 +110,12 @@ async def positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("You have no active positions.")
 
 
-async def _decide(update: Update, context: ContextTypes.DEFAULT_TYPE, decision_type: DecisionType) -> None:
+async def _record_decision_and_reply(update: Update, decision_type: DecisionType, signal_id: int) -> None:
+    """Shared by the /open,/ignore commands and the plain-text reply
+    handler — both ultimately do the same thing: resolve the user, record
+    the decision, tell them what happened.
+    """
     command = decision_type.value.upper()
-    if not context.args:
-        await update.message.reply_text(f"Usage: /{decision_type.value} <signal_id>")
-        return
-
-    try:
-        signal_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("signal_id must be a number.")
-        return
-
     db = SessionLocal()
     try:
         user = _resolve_user(db, update)
@@ -142,9 +137,50 @@ async def _decide(update: Update, context: ContextTypes.DEFAULT_TYPE, decision_t
         db.close()
 
 
+async def _decide(update: Update, context: ContextTypes.DEFAULT_TYPE, decision_type: DecisionType) -> None:
+    if not context.args:
+        await update.message.reply_text(f"Usage: /{decision_type.value} <signal_id>")
+        return
+
+    try:
+        signal_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("signal_id must be a number.")
+        return
+
+    await _record_decision_and_reply(update, decision_type, signal_id)
+
+
 async def open_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _decide(update, context, DecisionType.OPEN)
 
 
 async def ignore_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await _decide(update, context, DecisionType.IGNORE)
+
+
+_TEXT_TO_DECISION = {"open": DecisionType.OPEN, "ignore": DecisionType.IGNORE}
+
+
+async def handle_text_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handles a bare "OPEN"/"IGNORE" sent as a reply to an alert message
+    (the UX the alert text asks for), as opposed to the explicit
+    /open <id> / /ignore <id> commands. Silently does nothing for replies
+    that aren't OPEN/IGNORE, or whose parent message isn't a recognizable
+    alert — this handler shares the update loop with anything else a user
+    might type, so it must not respond to unrelated messages.
+    """
+    if update.message is None or update.message.reply_to_message is None:
+        return
+
+    text = (update.message.text or "").strip().lower()
+    decision_type = _TEXT_TO_DECISION.get(text)
+    if decision_type is None:
+        return
+
+    parent_text = update.message.reply_to_message.text or ""
+    signal_id = extract_signal_id(parent_text)
+    if signal_id is None:
+        return  # not a reply to an alert we recognize
+
+    await _record_decision_and_reply(update, decision_type, signal_id)

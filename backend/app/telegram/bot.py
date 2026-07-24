@@ -10,7 +10,7 @@ request/response web server.
 
 import logging
 
-from telegram.ext import Application, CommandHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -33,6 +33,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("positions", handlers.positions))
     application.add_handler(CommandHandler("open", handlers.open_command))
     application.add_handler(CommandHandler("ignore", handlers.ignore_command))
+    application.add_handler(MessageHandler(filters.TEXT & filters.REPLY, handlers.handle_text_reply))
     return application
 
 

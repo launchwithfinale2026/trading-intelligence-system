@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # credentialed step — see docs/ROADMAP.md) and set in .env.
     telegram_bot_token: str | None = None
 
+    # Off by default: automatically scanning and messaging real users is a
+    # deliberate product decision a human should switch on, not something
+    # that starts happening the moment this code is deployed.
+    enable_scheduled_scanning: bool = False
+    scan_interval_seconds: int = 900
+
 
 @lru_cache
 def get_settings() -> Settings:

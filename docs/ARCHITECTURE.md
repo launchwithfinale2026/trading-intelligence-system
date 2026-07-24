@@ -215,6 +215,7 @@ backend/app/
     yfinance_provider.py          YFinanceProvider implementation              [BUILT — Phase 5]
     factory.py                     provider selection via config                [BUILT — Phase 5]
     scanner.py                    quality filters, ranking               [BUILT — Phase 6]
+    universe.py                    curated symbol list (editable)          [BUILT — Phase 9]
   strategies/
     base.py                       Strategy base class / Signal contract  [BUILT — Phase 7]
     momentum.py                     momentum strategy                    [BUILT — Phase 7]
@@ -229,6 +230,10 @@ backend/app/
   telegram/
     bot.py                                bot bootstrap                       [BUILT — Phase 4]
     handlers.py                            command + reply handlers            [BUILT — Phase 4, extended Phase 9]
+    alerts.py                               alert formatting + per-user send    [BUILT — Phase 9]
+  engine/
+    pipeline.py            scan -> strategies -> risk -> alert, end-to-end   [BUILT — Phase 9; not in the
+                            orchestration, gated off by default (Decision 16)  original spec's structure]
   feedback/
     tracker.py                             decision + outcome tracking          [planned — Phase 11]
 

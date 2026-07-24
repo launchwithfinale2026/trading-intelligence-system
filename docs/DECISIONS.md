@@ -306,3 +306,29 @@ replaces it.
 - **Status:** Accepted. See the equivalent reasoning already applied to
   Phase 5 (market data) and Phase 8 (risk engine) being built ahead of
   their originally-numbered order.
+
+---
+
+## 16. Automated scan-and-alert cycle ships disabled by default
+
+- **Date:** 2026-07-23
+- **Decision:** `engine/pipeline.py` (scan the universe, evaluate
+  strategies, alert interested users) is fully built and tested, but is
+  only registered with the scheduler if `ENABLE_SCHEDULED_SCANNING=true` in
+  `.env`. The shipped default is `false`.
+- **Reasoning:** Once a real Telegram bot token and real linked users
+  exist, turning this on means the system starts proactively messaging real
+  people on a timer. That's a meaningful behavior change with no undo
+  button (a sent Telegram message can't be unsent from the user's
+  perspective) — it belongs on the list of things this build stops short of
+  doing autonomously, alongside creating the bot token and brokerage
+  accounts, even though no external credential is required to flip the
+  flag itself.
+- **Alternatives considered:** Enabling it by default once a bot token is
+  present, on the theory that "the system isn't useful until it alerts
+  people." Rejected — usefulness doesn't override the fact that this is the
+  first point where the system's autonomous behavior becomes visible to
+  people other than the operator, which is exactly the kind of product
+  decision the build spec reserves for a human.
+- **Status:** Accepted. Flipping `ENABLE_SCHEDULED_SCANNING=true` is a
+  one-line config change once a human has made that call.

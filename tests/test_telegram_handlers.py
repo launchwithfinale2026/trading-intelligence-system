@@ -38,6 +38,12 @@ def _fake_context(args: list[str] | None = None):
     return SimpleNamespace(args=args or [])
 
 
+def _fake_reply_update(telegram_user_id: int, text: str, parent_text: str | None):
+    parent = SimpleNamespace(text=parent_text) if parent_text is not None else None
+    message = SimpleNamespace(reply_text=AsyncMock(), text=text, reply_to_message=parent)
+    return SimpleNamespace(message=message, effective_user=SimpleNamespace(id=telegram_user_id))
+
+
 def _seed_user(session_factory, *, telegram_id: int | None = None) -> int:
     db = session_factory()
     try:
@@ -205,3 +211,51 @@ def test_open_for_unlinked_telegram_user_is_handled_gracefully(bot_session_facto
     asyncio.run(handlers.open_command(update, _fake_context([str(signal_id)])))
 
     assert "isn't linked" in update.message.reply_text.call_args[0][0]
+
+
+def test_text_reply_open_records_decision(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    signal_id = _seed_signal(bot_session_factory)
+    update = _fake_reply_update(12345, "OPEN", f"...\nSignal ID: {signal_id}")
+
+    asyncio.run(handlers.handle_text_reply(update, _fake_context()))
+
+    assert f"Recorded: OPEN on signal {signal_id}" in update.message.reply_text.call_args[0][0]
+
+
+def test_text_reply_ignore_records_decision_case_insensitively(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    signal_id = _seed_signal(bot_session_factory)
+    update = _fake_reply_update(12345, "  ignore  ", f"...\nSignal ID: {signal_id}")
+
+    asyncio.run(handlers.handle_text_reply(update, _fake_context()))
+
+    assert f"Recorded: IGNORE on signal {signal_id}" in update.message.reply_text.call_args[0][0]
+
+
+def test_text_reply_ignores_unrelated_text(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    signal_id = _seed_signal(bot_session_factory)
+    update = _fake_reply_update(12345, "sounds good thanks", f"...\nSignal ID: {signal_id}")
+
+    asyncio.run(handlers.handle_text_reply(update, _fake_context()))
+
+    update.message.reply_text.assert_not_called()
+
+
+def test_text_reply_ignores_when_parent_has_no_signal_id(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    update = _fake_reply_update(12345, "OPEN", "just a regular message")
+
+    asyncio.run(handlers.handle_text_reply(update, _fake_context()))
+
+    update.message.reply_text.assert_not_called()
+
+
+def test_text_reply_ignores_messages_that_are_not_replies(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    update = _fake_reply_update(12345, "OPEN", None)
+
+    asyncio.run(handlers.handle_text_reply(update, _fake_context()))
+
+    update.message.reply_text.assert_not_called()

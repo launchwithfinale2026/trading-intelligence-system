@@ -22,6 +22,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("%s starting up (env=%s)", settings.app_name, settings.environment)
     scheduler = get_scheduler()
     scheduler.start()
+
+    if settings.enable_scheduled_scanning:
+        from app.engine.pipeline import run_scan_cycle_sync
+
+        scheduler.add_interval_job(
+            run_scan_cycle_sync, seconds=settings.scan_interval_seconds, job_id="scan_cycle"
+        )
+        logger.info("scheduled scanning enabled, every %ss", settings.scan_interval_seconds)
+    else:
+        logger.info("scheduled scanning disabled (ENABLE_SCHEDULED_SCANNING=false)")
+
     yield
     scheduler.shutdown()
 
