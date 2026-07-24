@@ -19,3 +19,6 @@ python-multipart
 # Phase 5: Market data engine
 yfinance
 apscheduler
+
+# Phase 4: Telegram bot system
+python-telegram-bot

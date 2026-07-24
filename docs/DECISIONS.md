@@ -280,3 +280,29 @@ replaces it.
   choice the autonomous build mission calls out as not requiring a human.
 - **Status:** Accepted — trivially revisable; change the one constant in
   `risk/calculator.py` if a different value is preferred.
+
+---
+
+## 15. `decisions` table built in Phase 4, not Phase 11
+
+- **Date:** 2026-07-23
+- **Decision:** The original phase plan put the `decisions` table under
+  Phase 11 (Feedback System). It was actually built in Phase 4, alongside
+  the Telegram bot's `/open` and `/ignore` commands.
+- **Reasoning:** `/open` and `/ignore` are not real commands if they have
+  nowhere to record what the user decided — a version that just echoed the
+  signal back without persisting anything would be exactly the kind of
+  half-finished, fake-success work the build spec prohibits. The actual
+  dependency is "OPEN/IGNORE commands need a decisions table," which is a
+  Phase 4 need, not an artifact of the phase being numbered 11. Phase 11
+  keeps its own scope (aggregate performance stats, `trade_results`) — it
+  just doesn't own the base table anymore.
+- **Alternatives considered:** Shipping `/open`/`/ignore` in Phase 4 as
+  read-only acknowledgments ("Got it, NVDA at $175 — noted") with no
+  persistence, and building real decision recording later in Phase 11.
+  Rejected — that's a stub wearing a real command's name; a user replying
+  OPEN would reasonably expect it to be remembered, and it wouldn't have
+  been.
+- **Status:** Accepted. See the equivalent reasoning already applied to
+  Phase 5 (market data) and Phase 8 (risk engine) being built ahead of
+  their originally-numbered order.

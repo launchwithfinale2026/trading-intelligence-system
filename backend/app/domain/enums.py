@@ -29,3 +29,8 @@ class AlertPreference(str, Enum):
 class SignalDirection(str, Enum):
     LONG = "long"
     SHORT = "short"
+
+
+class DecisionType(str, Enum):
+    OPEN = "open"
+    IGNORE = "ignore"

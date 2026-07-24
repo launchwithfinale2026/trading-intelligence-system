@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # exists so a future provider is a config change, not a code change.
     market_data_provider: str = "yfinance"
 
+    # Telegram. None until a real bot is created via BotFather (a human,
+    # credentialed step — see docs/ROADMAP.md) and set in .env.
+    telegram_bot_token: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -95,22 +95,40 @@ their own profile (19 automated tests + a live end-to-end `curl` smoke test).
 
 ---
 
-## Phase 4 — Telegram System 🔜
+## Phase 4 — Telegram System ✅
+
+**Completed:** 2026-07-23 (built after Phases 5-8 — see ordering note above)
 
 **Goal:** A Telegram bot that can identify which user is messaging and route
 commands accordingly.
 
-**Will build:**
-- Bot bootstrap (`telegram/bot.py`)
-- Commands: `/start`, `/profile`, `/status`, `/open`, `/ignore`, `/positions`
-- User resolution: incoming Telegram user → system user → profile
+**Built:**
+- `telegram/bot.py` — bootstrap (`python -m app.telegram.bot`), a separate
+  process from the API server since a long-polling bot has a "run forever"
+  lifecycle and shouldn't block the API from starting when no token is set
+- `telegram/handlers.py` — `/start <username>` (links a Telegram account to
+  an existing dashboard user), `/profile`, `/status`, `/positions`,
+  `/open <signal_id>`, `/ignore <signal_id>`, every handler resolving
+  Telegram user → system user via `User.telegram_id`
+- **Pulled the `decisions` table forward from Phase 11**: `/open` and
+  `/ignore` need somewhere real to record a decision, or they're not
+  functional commands — see the ordering note above and Decision 15. One
+  decision per (user, signal), enforced by a unique constraint.
+- `/positions` currently always replies "no active positions" — that's
+  literally true today (Position tracking doesn't exist until Phase 10), not
+  a placeholder pretending to work.
 
-**Success criteria:** Each command responds correctly for a known user, and
-an unrecognized Telegram user is handled gracefully (no crash, no data
-leak).
+**Success criteria:** ✅ Verified — 17 tests: linking flow (including
+rejecting a relink to a different Telegram account), every command against
+both a linked and an unlinked user (graceful, no crash, no data leak),
+OPEN/IGNORE recording real Decision rows and rejecting a duplicate decision
+on the same signal, invalid signal id (unknown and non-numeric) handled
+cleanly. Also verified `build_application()` correctly raises with a clear
+error when `TELEGRAM_BOT_TOKEN` is unset — creating the actual bot via
+BotFather is the human step this phase stops at.
 
 **Dependencies:** Phase 2 (users), Phase 3 (identity model, even if Telegram
-auth itself is separate from web session auth).
+auth itself is separate from web session auth), Phase 7 (signals to decide on).
 
 ---
 
@@ -269,15 +287,17 @@ and sends the right alert.
 **Goal:** The system's track record becomes measurable data.
 
 **Will build:**
-- `decisions` and `trade_results` tables
-- `feedback/tracker.py` — records signal → decision → result → performance
+- `decisions` table already exists (built in Phase 4, so `/open`/`/ignore`
+  had something real to record against) — this phase adds `trade_results`
+- `feedback/tracker.py` — records result → performance, joins against the
+  existing `decisions` table
 - Aggregate stats: accepted vs. ignored signals, win rate by strategy
 
 **Success criteria:** After a handful of simulated signals/decisions/results,
 the tracker produces correct aggregate stats (accept rate, per-strategy
 win rate) verified against hand-computed expected values.
 
-**Dependencies:** Phase 9 (decisions), Phase 10 (results).
+**Dependencies:** Phase 4 (decisions), Phase 10 (results).
 
 ---
 

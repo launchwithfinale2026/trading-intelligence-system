@@ -227,8 +227,8 @@ backend/app/
   portfolio/
     positions.py                        active position tracking              [planned — Phase 10]
   telegram/
-    bot.py                                bot bootstrap                       [planned — Phase 4]
-    handlers.py                            command + reply handlers            [planned — Phase 4/9]
+    bot.py                                bot bootstrap                       [BUILT — Phase 4]
+    handlers.py                            command + reply handlers            [BUILT — Phase 4, extended Phase 9]
   feedback/
     tracker.py                             decision + outcome tracking          [planned — Phase 11]
 
@@ -251,7 +251,7 @@ each phase adds tables.
 | `users` ✅ | 2 | Login identity (username, email, password hash, telegram_id) | 1:1 with `profiles` |
 | `profiles` ✅ | 2 | Per-user trading config (account_size, risk preference, style, alert preference) | belongs to `users` |
 | `signals` ✅ | 7 | Every signal a strategy produced, regardless of user decision | belongs to a strategy run |
-| `decisions` | 11 | A user's OPEN/IGNORE response to a signal | belongs to `users` + `signals` |
+| `decisions` ✅ | 4 (moved from 11 — see Decision 15) | A user's OPEN/IGNORE response to a signal | belongs to `users` + `signals` |
 | `positions` | 10 | Active/closed positions opened from an accepted signal | belongs to `users` + `signals` |
 | `trade_results` | 11 | Outcome of a closed position (win/loss, R-multiple) | belongs to `positions` |
 
