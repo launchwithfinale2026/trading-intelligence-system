@@ -120,3 +120,20 @@ def test_monitor_cycle_updates_position_status_in_database(db_session: Session, 
     db_session.refresh(position)
     assert position.status == PositionStatus.CLOSED_STOP
     assert position.close_price == Decimal("89.00")
+
+
+def test_monitor_cycle_records_a_trade_result(db_session: Session, fake_bot) -> None:
+    from app.repositories.trade_result_repository import TradeResultRepository
+
+    _, _, position = _seed_user_with_open_position(db_session)
+
+    asyncio.run(
+        run_position_monitor_cycle(fake_bot, provider=FakePriceProvider({"NVDA": Decimal("89.00")}), db=db_session)
+    )
+
+    result = TradeResultRepository(db_session).get_by_position(position.id)
+    assert result is not None
+    assert result.is_win is False
+    assert result.strategy_name == "momentum"
+    # entry 100, stop 90 -> $10/share risk; closed at 89 -> -$11/share -> -1.1R
+    assert result.r_multiple == Decimal("-1.10")

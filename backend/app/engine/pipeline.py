@@ -25,6 +25,7 @@ from app.market.universe import DEFAULT_UNIVERSE
 from app.repositories.signal_repository import SignalRepository
 from app.repositories.user_repository import UserRepository
 from app.risk.calculator import calculate_position_size
+from app.services.feedback_service import FeedbackService
 from app.services.position_service import PositionService
 from app.services.signal_service import SignalService
 from app.strategies.base import Signal as StrategySignal
@@ -158,6 +159,8 @@ async def run_position_monitor_cycle(
             if user is None or signal is None:
                 logger.warning("closed position %s missing user or signal for alerting", position.id)
                 continue
+
+            FeedbackService(db).record_trade_result(position=position, signal=signal)
             await send_position_closed_alert(bot, user, position, signal)
 
         return len(closed_positions)

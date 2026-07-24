@@ -324,20 +324,37 @@ via `/positions` and `/ignore` does not. 122/122 suite passing.
 
 ---
 
-## Phase 11 — Feedback System ⏳
+## Phase 11 — Feedback System ✅
+
+**Completed:** 2026-07-23
 
 **Goal:** The system's track record becomes measurable data.
 
-**Will build:**
-- `decisions` table already exists (built in Phase 4, so `/open`/`/ignore`
-  had something real to record against) — this phase adds `trade_results`
-- `feedback/tracker.py` — records result → performance, joins against the
-  existing `decisions` table
-- Aggregate stats: accepted vs. ignored signals, win rate by strategy
+**Built:**
+- `trade_results` table (Alembic-migrated) — one row per closed position,
+  computed once at close time (win/loss, R-multiple, P/L) rather than
+  re-derived from `positions` on every read
+- `repositories/trade_result_repository.py` + `services/feedback_service.py`
+  — same repository/service pattern as everything else, superseding the
+  originally-planned `feedback/tracker.py` (consistent with the Phase 10
+  `portfolio/` decision)
+- `FeedbackService.record_trade_result()` — wired into
+  `run_position_monitor_cycle()` immediately after a position closes, so a
+  closed position without a recorded result is structurally impossible on
+  the one code path that closes positions
+- `FeedbackService.get_performance_by_strategy()` — per-strategy signals
+  generated, accepted/ignored counts, trades closed, wins, win rate,
+  average R-multiple
+- `GET /feedback/performance` (authenticated)
 
-**Success criteria:** After a handful of simulated signals/decisions/results,
-the tracker produces correct aggregate stats (accept rate, per-strategy
-win rate) verified against hand-computed expected values.
+**Success criteria:** ✅ Verified — 6 `FeedbackService` tests including a
+fully hand-computed multi-strategy, multi-user scenario (3 momentum
+signals: one win at +2.00R, one loss at -1.00R, one ignored; one breakout
+signal with no decisions) asserting exact `accepted=2`, `ignored=1`,
+`win_rate=50.0`, `average_r_multiple=0.50` for momentum and all-zero/`None`
+for breakout. Plus 3 API tests and a monitor-cycle integration test
+confirming a real `TradeResult` row appears after a stop-loss close.
+132/132 suite passing.
 
 **Dependencies:** Phase 4 (decisions), Phase 10 (results).
 

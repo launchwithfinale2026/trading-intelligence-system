@@ -238,8 +238,12 @@ backend/app/
   engine/
     pipeline.py            scan -> strategies -> risk -> alert, end-to-end   [BUILT — Phase 9; not in the
                             orchestration, gated off by default (Decision 16)  original spec's structure]
-  feedback/
-    tracker.py                             decision + outcome tracking          [planned — Phase 11]
+  repositories/trade_result_repository.py, services/feedback_service.py
+                                         decision + outcome tracking          [BUILT — Phase 11; superseded the
+                                                                                originally-planned feedback/
+                                                                                tracker.py, same reasoning as
+                                                                                Phase 10's portfolio/ decision]
+  api/feedback.py                       GET /feedback/performance            [BUILT — Phase 11]
 
 frontend/                                 Next.js dashboard                    [planned — Phase 12]
   app/, components/, pages/, dashboard/
@@ -262,7 +266,7 @@ each phase adds tables.
 | `signals` ✅ | 7 | Every signal a strategy produced, regardless of user decision | belongs to a strategy run |
 | `decisions` ✅ | 4 (moved from 11 — see Decision 15) | A user's OPEN/IGNORE response to a signal | belongs to `users` + `signals` |
 | `positions` ✅ | 10 | Active/closed positions opened from an accepted signal | belongs to `users` + `signals` |
-| `trade_results` | 11 | Outcome of a closed position (win/loss, R-multiple) | belongs to `positions` |
+| `trade_results` ✅ | 11 | Outcome of a closed position (win/loss, R-multiple) | belongs to `positions` |
 
 Every user-owned table carries a `user_id` foreign key and every query is
 scoped by the authenticated user — this is the mechanism behind the "every
