@@ -203,7 +203,7 @@ backend/app/
     security.py                password hashing, token handling        [BUILT — Phase 3]
     exceptions.py               domain error types                     [BUILT — Phase 2]
     exception_handlers.py        domain error -> HTTP translation        [BUILT — Phase 3]
-    scheduler.py               recurring job runner                    [planned — Phase 5]
+    scheduler.py               recurring job runner                    [BUILT — Phase 5]
   database/
     database.py                engine/session/Base                     [BUILT — Phase 1]
     models/                     SQLAlchemy models (User, Profile, ...)   [BUILT — Phase 2, grows every phase]
@@ -211,7 +211,9 @@ backend/app/
   services/                      isolation-enforcing business logic         [BUILT — Phase 2]
   schemas/                        Pydantic request/response models           [BUILT — Phase 2/3]
   market/
-    provider.py                 MarketDataProvider interface + yfinance [planned — Phase 5]
+    provider.py                 MarketDataProvider interface (vendor-neutral) [BUILT — Phase 5]
+    yfinance_provider.py          YFinanceProvider implementation              [BUILT — Phase 5]
+    factory.py                     provider selection via config                [BUILT — Phase 5]
     scanner.py                    quality filters, ranking               [planned — Phase 6]
   strategies/
     base.py                       Strategy base class / Signal contract  [planned — Phase 7]

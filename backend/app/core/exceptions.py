@@ -24,3 +24,11 @@ class ForbiddenError(DomainError):
 
 class UnauthorizedError(DomainError):
     """The requester's credentials are missing or invalid."""
+
+
+class MarketDataError(DomainError):
+    """A market data provider could not return real data for a request.
+
+    Raised instead of returning placeholder/fabricated values — callers must
+    handle this explicitly rather than silently receiving fake prices.
+    """

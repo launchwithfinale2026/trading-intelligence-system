@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     secret_key: str = "dev-only-insecure-secret-change-me"
     access_token_expire_minutes: int = 60 * 24
 
+    # Market data. "yfinance" is the only implementation today; the value
+    # exists so a future provider is a config change, not a code change.
+    market_data_provider: str = "yfinance"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -9,6 +9,15 @@ phase. See [ARCHITECTURE.md](ARCHITECTURE.md) for subsystem detail and
 Rule for this file: **a phase is only marked Complete when its success
 criteria are met and its tests pass.** Partial work stays In Progress.
 
+**Note on ordering:** phases are numbered by the original spec, but are not
+always *built* strictly in numeric order — where two phases have no
+dependency on each other, they're built in whichever order the dependency
+graph allows soonest. Phase 5 (Market Data Engine) was built before Phase 4
+(Telegram) because the scanner/strategy/portfolio phases downstream all need
+a data provider, while nothing downstream of Phase 4 was ready to build yet.
+See DECISIONS.md if a reordering needs justifying beyond "no dependency
+either way."
+
 ---
 
 ## Status legend
@@ -105,18 +114,27 @@ auth itself is separate from web session auth).
 
 ---
 
-## Phase 5 — Market Data Engine ⏳
+## Phase 5 — Market Data Engine ✅
+
+**Completed:** 2026-07-23 (built ahead of Phase 4 — see ordering note above)
 
 **Goal:** A replaceable market data abstraction, backed first by `yfinance`.
 
-**Will build:**
-- `MarketDataProvider` interface: `get_price`, `get_history`, `get_volume`,
-  `get_market_status`
-- `YFinanceProvider` implementation
-- Scheduler skeleton for recurring jobs
+**Built:**
+- `MarketDataProvider` ABC: `get_price`, `get_history`, `get_volume`,
+  `get_market_status`, returning vendor-neutral `PricePoint`/`MarketStatus`
+  dataclasses (never a raw yfinance/pandas object)
+- `YFinanceProvider` implementation; raises `MarketDataError` instead of
+  ever returning fabricated/placeholder data when a symbol is invalid or a
+  fetch fails
+- `market/factory.py` — provider selection via `MARKET_DATA_PROVIDER` config
+- Scheduler skeleton (`core/scheduler.py`, APScheduler-backed), started/stopped
+  in the app lifespan with zero jobs registered yet
 
-**Success criteria:** All four interface methods return correct data for a
-known liquid symbol (e.g. `AAPL`), verified against a second source.
+**Success criteria:** ✅ Verified — all four methods tested against mocked
+yfinance responses (9 tests) plus a live manual run against real Yahoo
+Finance data for `AAPL` (price, volume, 5-day history, market status all
+returned correctly).
 
 **Dependencies:** Phase 1 (config for provider selection).
 

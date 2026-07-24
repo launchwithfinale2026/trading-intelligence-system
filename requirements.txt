@@ -15,3 +15,7 @@ email-validator
 bcrypt
 PyJWT
 python-multipart
+
+# Phase 5: Market data engine
+yfinance
+apscheduler
