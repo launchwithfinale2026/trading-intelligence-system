@@ -8,7 +8,7 @@ export class ApiError extends Error {
   }
 }
 
-export type RiskPreference = "conservative" | "moderate" | "aggressive";
+export type RiskPreference = "conservative" | "moderate" | "aggressive" | "experimental";
 export type TradingStyle = "momentum" | "swing" | "breakout" | "position";
 export type AlertPreference = "all_signals" | "high_confidence_only" | "none";
 export type SignalDirection = "long" | "short";

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, feedback, market, portfolio, signals, users
+from app.api import auth, feedback, market, portfolio, signals, users, watchlist
 from app.core.config import get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import configure_logging
@@ -62,6 +62,7 @@ app.include_router(signals.router)
 app.include_router(feedback.router)
 app.include_router(portfolio.router)
 app.include_router(market.router)
+app.include_router(watchlist.router)
 
 
 @app.get("/health")

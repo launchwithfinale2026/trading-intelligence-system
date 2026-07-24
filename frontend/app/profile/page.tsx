@@ -69,6 +69,7 @@ function ProfileContent() {
             <option value="conservative">Conservative (0.5% risk/trade)</option>
             <option value="moderate">Moderate (1% risk/trade)</option>
             <option value="aggressive">Aggressive (2% risk/trade)</option>
+            <option value="experimental">Experimental (scaled by account size)</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">

@@ -108,6 +108,24 @@ the full test suite / lint / typecheck / build on every push and PR
 touching their respective directories — no setup required, they run as
 soon as this repo is on GitHub with Actions enabled (already the case).
 
+## Since this was written (2026-07-24 Telegram/risk-policy/watchlist session)
+
+Three new migrations landed after Phase 13: `telegram_contacts` +
+`telegram_events` (chat-ID auto-capture, outbound message log), `risk_policies`
+(data-driven risk curves — see `app/risk/policy.py` and
+`app/services/risk_policy_service.py`), and `watchlist_symbols` (per-user
+symbol lists, unioned into the scan universe — see
+`app/repositories/watchlist_repository.py`). All three ship seed/backward-
+compatible: an unseeded or pre-migration deploy still works via the fixed
+`RISK_PERCENT_BY_PREFERENCE` fallback and the system default universe. Step
+4's `alembic upgrade head` picks these up automatically — no extra action
+needed beyond what this doc already says.
+
+The Telegram bot token has been live-verified against `https://api.telegram.org/bot<token>/getMe`
+this session (bot: `@Freetrade26bot`) and the full local stack (backend,
+bot, frontend) was run and manually exercised — see the verification log
+in this session's conversation for the exact checks run.
+
 ## What's explicitly not automated here
 
 - Creating the hosting accounts themselves

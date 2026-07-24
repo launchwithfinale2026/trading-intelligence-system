@@ -81,9 +81,36 @@ async def _send_text(bot: Bot, user: User, text: str) -> bool:
         logger.warning("cannot message user %s: no linked Telegram account", user.id)
         return False
 
+    return await send_message(bot, user.telegram_id, text)
+
+
+async def send_message(bot: Bot, chat_id: int, text: str) -> bool:
+    """Lowest-level reusable send: any chat_id, any text. Returns False
+    (logged, not raised) on failure — one bad send must never take down a
+    caller that's messaging several chats in a loop.
+    """
     try:
-        await bot.send_message(chat_id=user.telegram_id, text=text)
+        await bot.send_message(chat_id=chat_id, text=text)
         return True
     except TelegramError as exc:
-        logger.warning("failed to send message to user %s: %s", user.id, exc)
+        logger.warning("failed to send message to chat %s: %s", chat_id, exc)
         return False
+
+
+async def send_error(bot: Bot, chat_id: int, error_text: str) -> bool:
+    return await send_message(bot, chat_id, f"⚠️ Error: {error_text}")
+
+
+async def send_startup(bot: Bot, chat_ids: list[int]) -> None:
+    for chat_id in chat_ids:
+        await send_message(bot, chat_id, "Trading Intelligence System is online.")
+
+
+async def send_shutdown(bot: Bot, chat_ids: list[int]) -> None:
+    for chat_id in chat_ids:
+        await send_message(bot, chat_id, "Trading Intelligence System is shutting down.")
+
+
+async def send_system_notification(bot: Bot, chat_ids: list[int], text: str) -> None:
+    for chat_id in chat_ids:
+        await send_message(bot, chat_id, text)

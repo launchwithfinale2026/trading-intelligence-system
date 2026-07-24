@@ -23,10 +23,12 @@ from app.market.provider import MarketDataProvider
 from app.market.scanner import Scanner
 from app.market.universe import DEFAULT_UNIVERSE
 from app.repositories.signal_repository import SignalRepository
+from app.repositories.telegram_event_repository import TelegramEventRepository
 from app.repositories.user_repository import UserRepository
-from app.risk.calculator import calculate_position_size
+from app.repositories.watchlist_repository import WatchlistRepository
 from app.services.feedback_service import FeedbackService
 from app.services.position_service import PositionService
+from app.services.risk_policy_service import RiskPolicyService
 from app.services.signal_service import SignalService
 from app.strategies.base import Signal as StrategySignal
 from app.strategies.base import Strategy
@@ -51,10 +53,19 @@ def _should_alert(preference: AlertPreference, confidence: int) -> bool:
     return True  # ALL_SIGNALS
 
 
+def _is_watching(watchlist: set[str], symbol: str) -> bool:
+    """A user with no custom watchlist watches everything scanned (the
+    system default universe) — customizing a watchlist is opt-in, not a
+    prerequisite for getting alerted at all.
+    """
+    return not watchlist or symbol in watchlist
+
+
 async def _alert_interested_users(
     bot: Bot,
     db: Session,
     users: list[User],
+    watchlists: dict[int, set[str]],
     strategy_signal: StrategySignal,
 ) -> None:
     persisted = SignalService(db).record_signal(strategy_signal)
@@ -62,10 +73,12 @@ async def _alert_interested_users(
     for user in users:
         if user.telegram_id is None or user.profile is None:
             continue
+        if not _is_watching(watchlists.get(user.id, set()), persisted.symbol):
+            continue
         if not _should_alert(user.profile.alert_preference, persisted.confidence):
             continue
 
-        position_size = calculate_position_size(
+        position_size = RiskPolicyService(db).size_position(
             account_size=user.profile.account_size,
             risk_preference=user.profile.risk_preference,
             entry=persisted.entry,
@@ -75,7 +88,10 @@ async def _alert_interested_users(
             logger.info("skipping alert to user %s: risk budget affords 0 shares", user.id)
             continue
 
-        await send_alert(bot, user, persisted, position_size)
+        sent = await send_alert(bot, user, persisted, position_size)
+        if sent:
+            TelegramEventRepository(db).log(kind="alert", chat_id=user.telegram_id, text=f"signal {persisted.id}")
+            db.commit()
 
 
 async def run_scan_cycle(
@@ -89,18 +105,30 @@ async def run_scan_cycle(
     """Runs one full scan/alert cycle. Returns the number of signals
     produced (for logging/monitoring), regardless of how many users were
     actually alerted.
+
+    When universe isn't passed explicitly, it's the system default universe
+    plus every user's custom watchlist symbols unioned in — so a user can
+    watch a symbol outside the default universe and still get scanned for
+    it. Callers that pass universe explicitly (e.g. tests) get exactly that
+    set scanned, no watchlist expansion.
     """
     provider = provider or get_market_data_provider()
     strategies = strategies if strategies is not None else DEFAULT_STRATEGIES
-    universe = universe if universe is not None else DEFAULT_UNIVERSE
     owns_session = db is None
     db = db or SessionLocal()
 
     signals_produced = 0
     try:
+        users = UserRepository(db).list()
+        watchlists: dict[int, set[str]] = {
+            user.id: {w.symbol for w in WatchlistRepository(db).list_for_user(user.id)} for user in users
+        }
+
+        if universe is None:
+            universe = list(dict.fromkeys([*DEFAULT_UNIVERSE, *WatchlistRepository(db).list_all_distinct_symbols()]))
+
         scanner = Scanner(provider)
         ranked = scanner.scan(universe)
-        users = UserRepository(db).list()
 
         for candidate in ranked:
             try:
@@ -113,7 +141,7 @@ async def run_scan_cycle(
                 strategy_signal = strategy.evaluate(candidate.symbol, history)
                 if strategy_signal is None:
                     continue
-                await _alert_interested_users(bot, db, users, strategy_signal)
+                await _alert_interested_users(bot, db, users, watchlists, strategy_signal)
                 signals_produced += 1
 
         return signals_produced
@@ -162,7 +190,12 @@ async def run_position_monitor_cycle(
                 continue
 
             FeedbackService(db).record_trade_result(position=position, signal=signal)
-            await send_position_closed_alert(bot, user, position, signal)
+            sent = await send_position_closed_alert(bot, user, position, signal)
+            if sent:
+                TelegramEventRepository(db).log(
+                    kind="position_closed", chat_id=user.telegram_id, text=f"position {position.id}"
+                )
+                db.commit()
 
         return len(closed_positions)
     finally:

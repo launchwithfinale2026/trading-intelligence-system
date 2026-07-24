@@ -8,17 +8,24 @@ attribute (not called at import time) so tests can monkeypatch
 """
 
 import logging
+from datetime import datetime, timezone
 
+from sqlalchemy import func, select
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from app.core.config import get_settings
 from app.core.exceptions import ConflictError, NotFoundError, RiskLimitError
 from app.database.database import SessionLocal
+from app.database.models.signal import Signal
 from app.database.models.user import User
 from app.domain.enums import DecisionType
 from app.market.factory import get_market_data_provider
+from app.market.universe import DEFAULT_UNIVERSE
 from app.repositories.position_repository import PositionRepository
 from app.repositories.signal_repository import SignalRepository
+from app.repositories.telegram_contact_repository import TelegramContactRepository
+from app.repositories.telegram_event_repository import TelegramEventRepository
 from app.repositories.user_repository import UserRepository
 from app.services.decision_service import DecisionService
 from app.services.position_service import PositionService
@@ -27,6 +34,44 @@ from app.telegram.alerts import extract_signal_id
 logger = logging.getLogger(__name__)
 
 _NOT_LINKED_MESSAGE = "This Telegram account isn't linked to a Trading Intelligence System user yet. Send /start <your username> to link it."
+_ONLINE_MESSAGE = "Trading Intelligence System is online."
+_HELP_MESSAGE = (
+    "Available commands:\n"
+    "/start <username> - link this chat to your dashboard account\n"
+    "/status - backend, scanner, and market status\n"
+    "/ping - check the bot is responsive\n"
+    "/profile - your risk profile\n"
+    "/positions - your open positions\n"
+    "/open <signal_id> - open a position from a signal\n"
+    "/ignore <signal_id> - ignore a signal\n"
+    "/help - show this message"
+)
+
+# Process start time, used for the "bot uptime" line in /status. Set at
+# import time — this module is only ever imported once per bot process.
+_START_TIME = datetime.now(timezone.utc)
+
+
+def _capture_contact(db, update: Update) -> None:
+    """Automatically records/refreshes whoever just messaged the bot,
+    independent of whether they have (or ever link) a dashboard account.
+    """
+    user = update.effective_user
+    if user is None:
+        return
+
+    chat = getattr(update, "effective_chat", None)
+    chat_id = getattr(chat, "id", None)
+    if chat_id is None:
+        chat_id = user.id  # private chats: chat id == user id
+
+    TelegramContactRepository(db).upsert(
+        telegram_id=user.id,
+        chat_id=chat_id,
+        username=getattr(user, "username", None),
+        first_name=getattr(user, "first_name", None),
+    )
+    db.commit()
 
 
 def _resolve_user(db, update: Update) -> User | None:
@@ -36,31 +81,35 @@ def _resolve_user(db, update: Update) -> User | None:
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not context.args:
-        await update.message.reply_text("Usage: /start <username>")
-        return
-
-    username = context.args[0]
-    telegram_id = update.effective_user.id
-
     db = SessionLocal()
     try:
+        _capture_contact(db, update)
+
+        if not context.args:
+            await update.message.reply_text(f"{_ONLINE_MESSAGE}\n\nUsage: /start <username>")
+            return
+
+        username = context.args[0]
+        telegram_id = update.effective_user.id
+
         user = UserRepository(db).get_by_username(username)
         if user is None:
-            await update.message.reply_text(f"No account found for username {username!r}. Register on the dashboard first.")
+            await update.message.reply_text(
+                f"{_ONLINE_MESSAGE}\n\nNo account found for username {username!r}. Register on the dashboard first."
+            )
             return
 
         if user.telegram_id == telegram_id:
-            await update.message.reply_text(f"Already linked. Welcome back, {username}.")
+            await update.message.reply_text(f"{_ONLINE_MESSAGE}\n\nAlready linked. Welcome back, {username}.")
             return
 
         if user.telegram_id is not None:
-            await update.message.reply_text("This account is already linked to a different Telegram user.")
+            await update.message.reply_text(f"{_ONLINE_MESSAGE}\n\nThis account is already linked to a different Telegram user.")
             return
 
         user.telegram_id = telegram_id
         db.commit()
-        await update.message.reply_text(f"Linked! Welcome, {username}.")
+        await update.message.reply_text(f"{_ONLINE_MESSAGE}\n\nLinked! Welcome, {username}.")
     finally:
         db.close()
 
@@ -85,18 +134,64 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         db.close()
 
 
+def _format_uptime(delta) -> str:
+    total_seconds = int(delta.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours}h {minutes}m {seconds}s"
+
+
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db = SessionLocal()
     try:
         if _resolve_user(db, update) is None:
             await update.message.reply_text(_NOT_LINKED_MESSAGE)
             return
+
+        try:
+            db.execute(select(1))
+            db_status = "connected"
+        except Exception:
+            db_status = "error"
+
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        signals_today = (
+            db.scalar(select(func.count()).select_from(Signal).where(Signal.created_at >= today_start)) or 0
+        )
+        alerts_today = TelegramEventRepository(db).count_since(kind="alert", since=today_start)
+        last_scan = db.scalar(select(func.max(Signal.created_at)))
     finally:
         db.close()
 
     market_status = get_market_data_provider().get_market_status()
-    state = "OPEN" if market_status.is_open else "CLOSED"
-    await update.message.reply_text(f"Market is {state} (as of {market_status.as_of:%Y-%m-%d %H:%M %Z})")
+    market_state = "OPEN" if market_status.is_open else "CLOSED"
+    scanner_state = "enabled" if get_settings().enable_scheduled_scanning else "manual only"
+    last_scan_text = f"{last_scan:%Y-%m-%d %H:%M} UTC" if last_scan else "never"
+
+    await update.message.reply_text(
+        "System Status\n"
+        "Backend: online\n"
+        f"Scanner: {scanner_state} (last scan: {last_scan_text})\n"
+        f"Database: {db_status}\n"
+        f"Watchlist size: {len(DEFAULT_UNIVERSE)}\n"
+        f"Signals generated today: {signals_today}\n"
+        f"Alerts sent today: {alerts_today}\n"
+        f"Bot uptime: {_format_uptime(datetime.now(timezone.utc) - _START_TIME)}\n"
+        f"Market is {market_state} (as of {market_status.as_of:%Y-%m-%d %H:%M %Z})"
+    )
+
+
+async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    sent_at = getattr(update.message, "date", None)
+    if sent_at is not None:
+        latency_ms = (datetime.now(timezone.utc) - sent_at).total_seconds() * 1000
+        await update.message.reply_text(f"PONG ({latency_ms:.0f} ms)")
+    else:
+        await update.message.reply_text("PONG")
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(_HELP_MESSAGE)
 
 
 async def positions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

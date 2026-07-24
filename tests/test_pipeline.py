@@ -11,6 +11,7 @@ from app.domain.enums import AlertPreference, RiskPreference, TradingStyle
 from app.engine.pipeline import run_scan_cycle
 from app.market.provider import MarketDataProvider, MarketStatus, PricePoint
 from app.services.user_service import UserService
+from app.services.watchlist_service import WatchlistService
 from app.strategies.momentum import MomentumStrategy
 
 
@@ -173,3 +174,30 @@ def test_pipeline_returns_zero_when_no_symbols_qualify(db_session: Session, fake
 
     assert signals_produced == 0
     fake_bot.send_message.assert_not_awaited()
+
+
+def test_pipeline_alerts_user_with_empty_watchlist_for_any_scanned_symbol(db_session: Session, fake_bot) -> None:
+    # No watchlist customization -> watches everything scanned, same as before watchlists existed.
+    _seed_user(db_session, username="jake", telegram_id=111, alert_preference=AlertPreference.ALL_SIGNALS)
+
+    _run(db_session, fake_bot)
+
+    fake_bot.send_message.assert_awaited_once()
+
+
+def test_pipeline_only_alerts_user_for_symbols_on_their_watchlist(db_session: Session, fake_bot) -> None:
+    user = _seed_user(db_session, username="jake", telegram_id=111, alert_preference=AlertPreference.ALL_SIGNALS)
+    WatchlistService(db_session).add_symbol(user.id, "TSLA")  # not NVDA, the symbol that will qualify
+
+    _run(db_session, fake_bot)
+
+    fake_bot.send_message.assert_not_awaited()
+
+
+def test_pipeline_alerts_user_whose_watchlist_includes_the_qualifying_symbol(db_session: Session, fake_bot) -> None:
+    user = _seed_user(db_session, username="jake", telegram_id=111, alert_preference=AlertPreference.ALL_SIGNALS)
+    WatchlistService(db_session).add_symbol(user.id, "NVDA")
+
+    _run(db_session, fake_bot)
+
+    fake_bot.send_message.assert_awaited_once()

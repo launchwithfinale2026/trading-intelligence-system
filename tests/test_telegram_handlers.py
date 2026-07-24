@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -10,6 +11,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.models import Base
 from app.domain.enums import RiskPreference, SignalDirection, TradingStyle
+from app.repositories.telegram_contact_repository import TelegramContactRepository
 from app.services.signal_service import SignalService
 from app.services.user_service import UserService
 from app.strategies.base import Signal as StrategySignal
@@ -287,3 +289,85 @@ def test_text_reply_ignores_messages_that_are_not_replies(bot_session_factory) -
     asyncio.run(handlers.handle_text_reply(update, _fake_context()))
 
     update.message.reply_text.assert_not_called()
+
+
+def _fake_start_update(telegram_user_id: int, *, username: str | None = None, first_name: str | None = None):
+    message = SimpleNamespace(reply_text=AsyncMock())
+    effective_user = SimpleNamespace(id=telegram_user_id, username=username, first_name=first_name)
+    effective_chat = SimpleNamespace(id=telegram_user_id)
+    return SimpleNamespace(message=message, effective_user=effective_user, effective_chat=effective_chat)
+
+
+def test_start_replies_with_online_message_regardless_of_outcome(bot_session_factory) -> None:
+    update = _fake_start_update(999, username="jdoe", first_name="Jake")
+
+    asyncio.run(handlers.start(update, _fake_context()))
+
+    reply = update.message.reply_text.call_args[0][0]
+    assert "Trading Intelligence System is online." in reply
+    assert "Usage" in reply
+
+
+def test_start_automatically_captures_telegram_contact(bot_session_factory) -> None:
+    update = _fake_start_update(4242, username="jdoe", first_name="Jake")
+
+    asyncio.run(handlers.start(update, _fake_context()))
+
+    db = bot_session_factory()
+    try:
+        contact = TelegramContactRepository(db).get_by_telegram_id(4242)
+        assert contact is not None
+        assert contact.chat_id == 4242
+        assert contact.username == "jdoe"
+        assert contact.first_name == "Jake"
+    finally:
+        db.close()
+
+
+def test_start_with_known_username_still_links_and_greets_online(bot_session_factory) -> None:
+    _seed_user(bot_session_factory)
+    update = _fake_start_update(999, username="jdoe", first_name="Jake")
+
+    asyncio.run(handlers.start(update, _fake_context(["jake"])))
+
+    reply = update.message.reply_text.call_args[0][0]
+    assert "Trading Intelligence System is online." in reply
+    assert "Linked" in reply
+
+
+def test_ping_replies_with_pong_and_latency() -> None:
+    message = SimpleNamespace(reply_text=AsyncMock(), date=datetime.now(timezone.utc))
+    update = SimpleNamespace(message=message, effective_user=SimpleNamespace(id=1))
+
+    asyncio.run(handlers.ping(update, _fake_context()))
+
+    reply = update.message.reply_text.call_args[0][0]
+    assert "PONG" in reply
+    assert "ms" in reply
+
+
+def test_help_lists_every_command() -> None:
+    update = _fake_update()
+
+    asyncio.run(handlers.help_command(update, _fake_context()))
+
+    reply = update.message.reply_text.call_args[0][0]
+    for command in ["/start", "/status", "/ping", "/profile", "/positions", "/open", "/ignore", "/help"]:
+        assert command in reply
+
+
+def test_status_reports_extended_system_metrics(bot_session_factory) -> None:
+    _seed_user(bot_session_factory, telegram_id=12345)
+    update = _fake_update(telegram_user_id=12345)
+
+    asyncio.run(handlers.status(update, _fake_context()))
+
+    reply = update.message.reply_text.call_args[0][0]
+    assert "Backend: online" in reply
+    assert "Scanner:" in reply
+    assert "Database: connected" in reply
+    assert "Watchlist size:" in reply
+    assert "Signals generated today:" in reply
+    assert "Alerts sent today:" in reply
+    assert "Bot uptime:" in reply
+    assert "Market is" in reply

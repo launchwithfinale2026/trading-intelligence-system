@@ -12,7 +12,7 @@ from app.domain.enums import PositionStatus, SignalDirection
 from app.market.provider import MarketDataProvider
 from app.repositories.position_repository import PositionRepository
 from app.repositories.signal_repository import SignalRepository
-from app.risk.calculator import calculate_position_size
+from app.services.risk_policy_service import RiskPolicyService
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class PositionService:
         if self.positions.get_by_user_and_signal(user.id, signal.id) is not None:
             raise ConflictError(f"user {user.id} already has a position for signal {signal.id}")
 
-        position_size = calculate_position_size(
+        position_size = RiskPolicyService(self.db).size_position(
             account_size=user.profile.account_size,
             risk_preference=user.profile.risk_preference,
             entry=signal.entry,

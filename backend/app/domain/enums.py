@@ -11,6 +11,7 @@ class RiskPreference(str, Enum):
     CONSERVATIVE = "conservative"
     MODERATE = "moderate"
     AGGRESSIVE = "aggressive"
+    EXPERIMENTAL = "experimental"
 
 
 class TradingStyle(str, Enum):
